@@ -1,5 +1,6 @@
 ---
-title: "Custom title"
-description: "Custom description"
+title: "{{ replace .Name "-" " " | title }}"
+date: {{ .Date }}
 draft: true
 ---
+
