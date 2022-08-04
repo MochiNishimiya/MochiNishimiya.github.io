@@ -8,12 +8,23 @@
     <language>en-us</language>
     <lastBuildDate>Fri, 05 Aug 2022 01:11:28 +0700</lastBuildDate><atom:link href="https://mochinishimiya.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Example</title>
+      <title>About</title>
+      <link>https://mochinishimiya.github.io/about/</link>
+      <pubDate>Fri, 05 Aug 2022 01:25:02 +0700</pubDate>
+      
+      <guid>https://mochinishimiya.github.io/about/</guid>
+      <description>A noob no one asked for, and still learning everyday. Main goal is to have fun in life (indeed, rev and pwn is really fun!).
+Member of team idek, and captain of team purf3ct.</description>
+    </item>
+    
+    <item>
+      <title>Draft post</title>
       <link>https://mochinishimiya.github.io/posts/example/</link>
       <pubDate>Fri, 05 Aug 2022 01:11:28 +0700</pubDate>
       
       <guid>https://mochinishimiya.github.io/posts/example/</guid>
-      <description></description>
+      <description>Hi, my name is Mochi and I&amp;rsquo;m suck.
+#include &amp;lt;stdio.h&amp;gt; int main() { printf(&amp;#34;Mochi sucks&amp;#34;); return 0; } print(&amp;#34;Mochi do suck!&amp;#34;) </description>
     </item>
     
   </channel>
