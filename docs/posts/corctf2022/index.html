@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html><head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge"><title>CorCTF 2022 - Mochi</title><meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="This week I spent a little time playing CorCTF, and I managed to solve two challenges which are really interesting. So this writeup is going to be my solution for those two." />
+	<meta property="og:image" content=""/>
+	<meta property="og:title" content="CorCTF 2022" />
+<meta property="og:description" content="This week I spent a little time playing CorCTF, and I managed to solve two challenges which are really interesting. So this writeup is going to be my solution for those two." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://mochinishimiya.github.io/posts/corctf2022/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2022-08-05T01:11:28+07:00" />
+<meta property="article:modified_time" content="2022-08-05T01:11:28+07:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="CorCTF 2022"/>
+<meta name="twitter:description" content="This week I spent a little time playing CorCTF, and I managed to solve two challenges which are really interesting. So this writeup is going to be my solution for those two."/>
+<script src="https://mochinishimiya.github.io/js/feather.min.js"></script>
+	
+	
+        <link href="https://mochinishimiya.github.io/css/fonts.7fa06c2792c8589768ffcdaf014e4bfc7f2ccbfba059f8e87131158970c23ed3.css" rel="stylesheet">
+	
+
+	
+	<link rel="stylesheet" type="text/css" media="screen" href="https://mochinishimiya.github.io/css/main.58ed1f9f233a108ca431c43f4e703a839ded6628733e05a9ae6288037e2ab711.css" />
+		<link id="darkModeStyle" rel="stylesheet" type="text/css" href="https://mochinishimiya.github.io/css/dark.c95c5dcf5f32f8b67bd36f7dab66680e068fce2b303087294114aabf7a7c080b.css"   />
+	
+	
+	
+</head>
+<body>
+        <div class="content"><header>
+	<div class="main">
+		<a href="https://mochinishimiya.github.io/">Mochi</a>
+	</div>
+	<nav>
+		
+		<a href="/">Home</a>
+		
+		<a href="/posts">All posts</a>
+		
+		<a href="/about">About</a>
+		
+		
+	</nav>
+</header>
+
+<main>
+	<article>
+		<div class="title">
+			<h1 class="title">CorCTF 2022</h1>
+			<div class="meta">Posted on Aug 5, 2022</div>
+		</div>
+		
+
+		<section class="body">
+			<h1 id="table-of-contents">Table of Contents</h1>
+<ol>
+<li><a href="#hackermans-dungeon-8-solves">Hackermans Dungeon</a>
+<ol>
+<li><a href="#reversing">Reversing</a></li>
+<li><a href="#obtaining-the-flag">Obtaining the flag</a></li>
+</ol>
+</li>
+<li><a href="#bogus-6-solves">Bogus</a>
+<ol>
+<li><a href="#vpermd">VPERMD</a></li>
+<li><a href="#vpunpckldq">VPUNPCKLDQ</a></li>
+<li><a href="#vpunpckhdq">VPUNPCKHDQ</a></li>
+<li><a href="#vpcmpgtd">VPCMPGTD</a></li>
+<li><a href="#putting-it-all-together">Putting it all together</a></li>
+<li><a href="#solution">Solution</a></li>
+</ol>
+</li>
+</ol>
+<h1 id="hackermans-dungeon-8-solves">Hackermans Dungeon (8 solves)</h1>
+<p><code>Hackerman told us he cannot be hacked. Can you hack hackerman?</code></p>
+<p>It&rsquo;s a normal AMD64 PE file with the purpose of checking user&rsquo;s username and password.</p>
+<p><img src="https://i.imgur.com/x8QeyXs.png" alt="hackermansdungeon"></p>
+<p>Loading it into IDA and messing around, we can spot some functions that look similar to this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>v28 <span style="color:#f92672">=</span> v25 <span style="color:#f92672">+</span> __ROL4__(v21 <span style="color:#f92672">+</span> (v25 <span style="color:#f92672">&amp;</span> v20 <span style="color:#f92672">|</span> v26) <span style="color:#f92672">+</span> v18 <span style="color:#f92672">-</span> <span style="color:#ae81ff">40341101</span>, <span style="color:#ae81ff">12</span>);
+</span></span><span style="display:flex;"><span>v29 <span style="color:#f92672">=</span> v28 <span style="color:#f92672">+</span> __ROR4__(v22 <span style="color:#f92672">+</span> (v25 <span style="color:#f92672">&amp;</span> v28 <span style="color:#f92672">|</span> v20 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v28) <span style="color:#f92672">+</span> v24, <span style="color:#ae81ff">15</span>);
+</span></span><span style="display:flex;"><span>v30 <span style="color:#f92672">=</span> v29 <span style="color:#f92672">+</span> __ROR4__(v27 <span style="color:#f92672">+</span> (v29 <span style="color:#f92672">&amp;</span> v28 <span style="color:#f92672">|</span> v25 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v29) <span style="color:#f92672">+</span> <span style="color:#ae81ff">1236535329</span> <span style="color:#f92672">+</span> v20, <span style="color:#ae81ff">10</span>);
+</span></span><span style="display:flex;"><span>v31 <span style="color:#f92672">=</span> v30 <span style="color:#f92672">+</span> __ROL4__(a2[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">-</span> <span style="color:#ae81ff">165796510</span> <span style="color:#f92672">+</span> (v30 <span style="color:#f92672">&amp;</span> v28 <span style="color:#f92672">|</span> v29 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v28) <span style="color:#f92672">+</span> v25, <span style="color:#ae81ff">5</span>);
+</span></span><span style="display:flex;"><span>v32 <span style="color:#f92672">=</span> v31 <span style="color:#f92672">+</span> __ROL4__(v28 <span style="color:#f92672">+</span> v83 <span style="color:#f92672">-</span> <span style="color:#ae81ff">1069501632</span> <span style="color:#f92672">+</span> (v30 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v29 <span style="color:#f92672">|</span> v31 <span style="color:#f92672">&amp;</span> v29), <span style="color:#ae81ff">9</span>);
+</span></span><span style="display:flex;"><span>v33 <span style="color:#f92672">=</span> v32 <span style="color:#f92672">+</span> __ROL4__(v84 <span style="color:#f92672">+</span> (v30 <span style="color:#f92672">&amp;</span> v32 <span style="color:#f92672">|</span> v31 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v30) <span style="color:#f92672">+</span> v29 <span style="color:#f92672">+</span> <span style="color:#ae81ff">643717713</span>, <span style="color:#ae81ff">14</span>);
+</span></span><span style="display:flex;"><span>v34 <span style="color:#f92672">=</span> v33 <span style="color:#f92672">+</span> __ROR4__(<span style="color:#f92672">*</span>a2 <span style="color:#f92672">+</span> (v31 <span style="color:#f92672">&amp;</span> v33 <span style="color:#f92672">|</span> v32 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v31) <span style="color:#f92672">+</span> v30 <span style="color:#f92672">-</span> <span style="color:#ae81ff">373897302</span>, <span style="color:#ae81ff">12</span>);
+</span></span><span style="display:flex;"><span>v35 <span style="color:#f92672">=</span> v34 <span style="color:#f92672">+</span> __ROL4__(v85 <span style="color:#f92672">+</span> (v34 <span style="color:#f92672">&amp;</span> v32 <span style="color:#f92672">|</span> v33 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v32) <span style="color:#f92672">+</span> v31 <span style="color:#f92672">-</span> <span style="color:#ae81ff">701558691</span>, <span style="color:#ae81ff">5</span>);
+</span></span><span style="display:flex;"><span>v36 <span style="color:#f92672">=</span> v35 <span style="color:#f92672">+</span> __ROL4__(v12 <span style="color:#f92672">+</span> (v35 <span style="color:#f92672">&amp;</span> v33 <span style="color:#f92672">|</span> v34 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v33) <span style="color:#f92672">+</span> v32 <span style="color:#f92672">+</span> <span style="color:#ae81ff">38016083</span>, <span style="color:#ae81ff">9</span>);
+</span></span><span style="display:flex;"><span>v37 <span style="color:#f92672">=</span> v36 <span style="color:#f92672">+</span> __ROL4__(v27 <span style="color:#f92672">+</span> (v34 <span style="color:#f92672">&amp;</span> v36 <span style="color:#f92672">|</span> v35 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v34) <span style="color:#f92672">+</span> v33 <span style="color:#f92672">-</span> <span style="color:#ae81ff">660478335</span>, <span style="color:#ae81ff">14</span>);
+</span></span><span style="display:flex;"><span>v38 <span style="color:#f92672">=</span> v37 <span style="color:#f92672">+</span> __ROR4__(v88 <span style="color:#f92672">+</span> (v35 <span style="color:#f92672">&amp;</span> v37 <span style="color:#f92672">|</span> v36 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v35) <span style="color:#f92672">+</span> v34 <span style="color:#f92672">-</span> <span style="color:#ae81ff">405537848</span>, <span style="color:#ae81ff">12</span>);
+</span></span><span style="display:flex;"><span>v39 <span style="color:#f92672">=</span> v38 <span style="color:#f92672">+</span> __ROL4__(v79 <span style="color:#f92672">+</span> (v38 <span style="color:#f92672">&amp;</span> v36 <span style="color:#f92672">|</span> v37 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v36) <span style="color:#f92672">+</span> v35 <span style="color:#f92672">+</span> <span style="color:#ae81ff">568446438</span>, <span style="color:#ae81ff">5</span>);
+</span></span><span style="display:flex;"><span>v40 <span style="color:#f92672">=</span> v39 <span style="color:#f92672">+</span> __ROL4__(v22 <span style="color:#f92672">+</span> (v39 <span style="color:#f92672">&amp;</span> v37 <span style="color:#f92672">|</span> v38 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v37) <span style="color:#f92672">+</span> v36 <span style="color:#f92672">-</span> <span style="color:#ae81ff">1019803690</span>, <span style="color:#ae81ff">9</span>);
+</span></span><span style="display:flex;"><span>v41 <span style="color:#f92672">=</span> v40 <span style="color:#f92672">+</span> __ROL4__(v37 <span style="color:#f92672">+</span> v87 <span style="color:#f92672">+</span> (v38 <span style="color:#f92672">&amp;</span> v40 <span style="color:#f92672">|</span> v39 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v38) <span style="color:#f92672">-</span> <span style="color:#ae81ff">187363961</span>, <span style="color:#ae81ff">14</span>);
+</span></span><span style="display:flex;"><span>v42 <span style="color:#f92672">=</span> v41 <span style="color:#f92672">+</span> __ROR4__(v80 <span style="color:#f92672">+</span> (v39 <span style="color:#f92672">&amp;</span> v41 <span style="color:#f92672">|</span> v40 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v39) <span style="color:#f92672">+</span> v38 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1163531501</span>, <span style="color:#ae81ff">12</span>);
+</span></span><span style="display:flex;"><span>v43 <span style="color:#f92672">=</span> v42 <span style="color:#f92672">+</span> __ROL4__(v21 <span style="color:#f92672">+</span> (v42 <span style="color:#f92672">&amp;</span> v40 <span style="color:#f92672">|</span> v41 <span style="color:#f92672">&amp;</span> <span style="color:#f92672">~</span>v40) <span style="color:#f92672">+</span> v39 <span style="color:#f92672">-</span> <span style="color:#ae81ff">1444681467</span>, <span style="color:#ae81ff">5</span>);
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><p>If you have reversed enough binaries, you would find it similar to some pieces of code that comes from a well known encryption algorithm. To test my theory, I used <a href="https://github.com/polymorf/findcrypt-yara">findcrypt-yara</a> plugin from IDA to find if there&rsquo;s any well known constant in an algorithm. And it ended up showing 3 popular ones: <code>CRC32</code>, <code>SHA256</code> and <code>MD5</code>.</p>
+<p>Having those hints, I can easily spot functions that are related to those 3 algorithms:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>v29 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>v30 <span style="color:#f92672">=</span> <span style="color:#ae81ff">1732584193</span>;
+</span></span><span style="display:flex;"><span>v20 <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>i64;
+</span></span><span style="display:flex;"><span>v31 <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">271733879</span>;
+</span></span><span style="display:flex;"><span>v32 <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1732584194</span>;
+</span></span><span style="display:flex;"><span>v33 <span style="color:#f92672">=</span> <span style="color:#ae81ff">271733878</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">do</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">++</span>v20;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">while</span> ( Src[v20] );
+</span></span><span style="display:flex;"><span>MD5_Init(<span style="color:#f92672">&amp;</span>v29, Src);
+</span></span><span style="display:flex;"><span>MD5_Final(<span style="color:#f92672">&amp;</span>v29);
+</span></span><span style="display:flex;"><span><span style="color:#f92672">*</span>(_OWORD <span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>v28[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> v34;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">do</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">++</span>v9;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">while</span> ( Src[v9] );
+</span></span><span style="display:flex;"><span>SHA256(Src, v9);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>strcmp(Buffer, <span style="color:#e6db74">&#34;CORnwallis&#34;</span>) <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">!</span>memcmp(<span style="color:#f92672">&amp;</span>unk_7FF7EEF27068, Buf2, <span style="color:#ae81ff">0x20u</span>i64) )
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>memset(v35, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(v35));
+</span></span><span style="display:flex;"><span>CHACHA_Init(v35, Buf2, <span style="color:#f92672">&amp;</span>v28[<span style="color:#ae81ff">1</span>]);
+</span></span><span style="display:flex;"><span>LODWORD(v35[<span style="color:#ae81ff">22</span>]) <span style="color:#f92672">=</span> <span style="color:#ae81ff">42</span>;
+</span></span><span style="display:flex;"><span>v35[<span style="color:#ae81ff">15</span>] <span style="color:#f92672">=</span> <span style="color:#ae81ff">42</span>i64;
+</span></span><span style="display:flex;"><span>v22 <span style="color:#f92672">=</span> LOBYTE(v35[<span style="color:#ae81ff">13</span>]) <span style="color:#f92672">|</span> ((BYTE1(v35[<span style="color:#ae81ff">13</span>]) <span style="color:#f92672">|</span> (WORD1(v35[<span style="color:#ae81ff">13</span>]) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">8</span>)) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span>v35[<span style="color:#ae81ff">8</span>] <span style="color:#f92672">=</span> <span style="color:#ae81ff">64</span>i64;
+</span></span><span style="display:flex;"><span>HIDWORD(v35[<span style="color:#ae81ff">22</span>]) <span style="color:#f92672">=</span> LOBYTE(v35[<span style="color:#ae81ff">13</span>]) <span style="color:#f92672">|</span> ((BYTE1(v35[<span style="color:#ae81ff">13</span>]) <span style="color:#f92672">|</span> (WORD1(v35[<span style="color:#ae81ff">13</span>]) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">8</span>)) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span>v23 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>v24 <span style="color:#f92672">=</span> <span style="color:#ae81ff">64</span>i64;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">do</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( v24 <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0x40</span> )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>    CHACHA_key_generate(v35);
+</span></span><span style="display:flex;"><span>    v8 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>    v35[<span style="color:#ae81ff">8</span>] <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    v25 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>((_BYTE <span style="color:#f92672">*</span>)v35 <span style="color:#f92672">+</span> v8<span style="color:#f92672">++</span>);
+</span></span><span style="display:flex;"><span>    byte_7FF7EEF27040[v23] <span style="color:#f92672">^=</span> v25;
+</span></span><span style="display:flex;"><span>    v24 <span style="color:#f92672">=</span> v8;
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">++</span>v23;
+</span></span><span style="display:flex;"><span>    v35[<span style="color:#ae81ff">8</span>] <span style="color:#f92672">=</span> v8;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">while</span> ( v23 <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0x23</span> );
+</span></span><span style="display:flex;"><span>LODWORD(v28[<span style="color:#ae81ff">0</span>]) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>CRC32(v22, v21, v28);
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><p>There is actually one exception that <code>findcrypt-yara</code> can&rsquo;t figure out, which is <code>CHACHA</code>. But we can easily identify that by finding the string <code>expand 32-byte k</code> in a function and google it, which results in many aritcles about <code>CHACHA</code>.</p>
+<p>Eventually these valuable information will make our reversing life much more easier.</p>
+<h2 id="reversing">Reversing</h2>
+<p>The program is pretty simple: it will compare our username with string <code>CORnwallis</code>, then it generates <code>SHA256</code> and <code>MD5</code> from our password for <code>key</code> and <code>nonce</code>, respectively, and use them for <code>CHACHA</code> to decrypt the flag. Finally the file will validate the decrypted flag by using <code>CRC32</code> and compare with a hardcoded value.</p>
+<p>I made a python version of the program so that readers can visualize the flow of the binary easier:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> binascii
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># password != flag, find one of those two and we can get the flag</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">encrypt</span>(password):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(password)):
+</span></span><span style="display:flex;"><span>        v19 <span style="color:#f92672">=</span> (i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">%</span> len(password)
+</span></span><span style="display:flex;"><span>        password[i] <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>        password[i] <span style="color:#f92672">=</span> (<span style="color:#f92672">~</span>((password[v19] <span style="color:#f92672">^</span> password[i]) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x62</span>)) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&#39;</span><span style="color:#f92672">.</span>join(bytes([i]) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> password)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">chacha20_key_generate</span>(key, iv):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">rotate</span>(v, c):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> ((v <span style="color:#f92672">&lt;&lt;</span> c) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffff</span>) <span style="color:#f92672">|</span> v <span style="color:#f92672">&gt;&gt;</span> (<span style="color:#ae81ff">32</span> <span style="color:#f92672">-</span> c)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">quarter_round</span>(x, a, b, c, d):
+</span></span><span style="display:flex;"><span>        x[a] <span style="color:#f92672">=</span> (x[a] <span style="color:#f92672">+</span> x[b]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffff</span>
+</span></span><span style="display:flex;"><span>        x[d] <span style="color:#f92672">=</span> rotate(x[d] <span style="color:#f92672">^</span> x[a], <span style="color:#ae81ff">16</span>)
+</span></span><span style="display:flex;"><span>        x[c] <span style="color:#f92672">=</span> (x[c] <span style="color:#f92672">+</span> x[d]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffff</span>
+</span></span><span style="display:flex;"><span>        x[b] <span style="color:#f92672">=</span> rotate(x[b] <span style="color:#f92672">^</span> x[c], <span style="color:#ae81ff">12</span>)
+</span></span><span style="display:flex;"><span>        x[a] <span style="color:#f92672">=</span> (x[a] <span style="color:#f92672">+</span> x[b]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffff</span>
+</span></span><span style="display:flex;"><span>        x[d] <span style="color:#f92672">=</span> rotate(x[d] <span style="color:#f92672">^</span> x[a], <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>        x[c] <span style="color:#f92672">=</span> (x[c] <span style="color:#f92672">+</span> x[d]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffff</span>
+</span></span><span style="display:flex;"><span>        x[b] <span style="color:#f92672">=</span> rotate(x[b] <span style="color:#f92672">^</span> x[c], <span style="color:#ae81ff">7</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    init_state <span style="color:#f92672">=</span> list(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;expand 32-byte k&#39;</span> <span style="color:#f92672">+</span> key <span style="color:#f92672">+</span> p32(<span style="color:#ae81ff">0x2a</span>))
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(iv)):
+</span></span><span style="display:flex;"><span>        init_state<span style="color:#f92672">.</span>append(iv[i])
+</span></span><span style="display:flex;"><span>    ctx <span style="color:#f92672">=</span> [<span style="color:#ae81ff">0</span>] <span style="color:#f92672">*</span> <span style="color:#ae81ff">16</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>        ctx[i] <span style="color:#f92672">=</span> (init_state[i <span style="color:#f92672">*</span> <span style="color:#ae81ff">4</span> <span style="color:#f92672">+</span> <span style="color:#ae81ff">3</span>] <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">24</span>) <span style="color:#f92672">+</span> (init_state[i <span style="color:#f92672">*</span> <span style="color:#ae81ff">4</span> <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>] <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">16</span>) <span style="color:#f92672">+</span> (init_state[i <span style="color:#f92672">*</span> <span style="color:#ae81ff">4</span> <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">8</span>) <span style="color:#f92672">+</span> (init_state[i <span style="color:#f92672">*</span> <span style="color:#ae81ff">4</span>])
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">=</span> [i <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> ctx]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">10</span>):
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">4</span>,  <span style="color:#ae81ff">8</span>, <span style="color:#ae81ff">12</span>)
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">5</span>,  <span style="color:#ae81ff">9</span>, <span style="color:#ae81ff">13</span>)
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">6</span>, <span style="color:#ae81ff">10</span>, <span style="color:#ae81ff">14</span>)
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">3</span>, <span style="color:#ae81ff">7</span>, <span style="color:#ae81ff">11</span>, <span style="color:#ae81ff">15</span>)
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">5</span>, <span style="color:#ae81ff">10</span>, <span style="color:#ae81ff">15</span>)
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">6</span>, <span style="color:#ae81ff">11</span>, <span style="color:#ae81ff">12</span>)
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">7</span>,  <span style="color:#ae81ff">8</span>, <span style="color:#ae81ff">13</span>)
+</span></span><span style="display:flex;"><span>        quarter_round(x, <span style="color:#ae81ff">3</span>, <span style="color:#ae81ff">4</span>,  <span style="color:#ae81ff">9</span>, <span style="color:#ae81ff">14</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    final_state <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>        ctx[i] <span style="color:#f92672">=</span> (ctx[i] <span style="color:#f92672">+</span> x[i]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffff</span>
+</span></span><span style="display:flex;"><span>        final_state<span style="color:#f92672">.</span>append(ctx[i] <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>)
+</span></span><span style="display:flex;"><span>        final_state<span style="color:#f92672">.</span>append((ctx[i] <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">8</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>)
+</span></span><span style="display:flex;"><span>        final_state<span style="color:#f92672">.</span>append((ctx[i] <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">16</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>)
+</span></span><span style="display:flex;"><span>        final_state<span style="color:#f92672">.</span>append((ctx[i] <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">24</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> final_state
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">chacha20_decrypt</span>(data, key, iv<span style="color:#f92672">=</span><span style="color:#66d9ef">None</span>, position<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>):
+</span></span><span style="display:flex;"><span>    state <span style="color:#f92672">=</span> chacha20_key_generate(key, iv)
+</span></span><span style="display:flex;"><span>    li <span style="color:#f92672">=</span> list(data)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(data)):
+</span></span><span style="display:flex;"><span>        li[i] <span style="color:#f92672">^=</span> state[i]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> li
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># --------- Modify this ------------</span>
+</span></span><span style="display:flex;"><span>iv <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#39;dbfe4eaab5c3a69748367be5&#39;</span>) <span style="color:#75715e"># md5(encrypt(password))[:12]</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ----------------------------------</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>key <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#39;9c00f1ac636216e2342f64ae3b82e3c02749a69c35df8c03554d55c101869d47&#39;</span>) <span style="color:#75715e"># sha256(encrypt(password))</span>
+</span></span><span style="display:flex;"><span>ciphertext <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#39;3aab3581d55f56b0cee5f5164db38d2d7823d01c00c1ec07190232914ab463ccedd908&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>flag <span style="color:#f92672">=</span> chacha20_decrypt(ciphertext, key, iv)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">assert</span> flag <span style="color:#f92672">==</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;corctf{&#39;</span> <span style="color:#f92672">and</span> binascii<span style="color:#f92672">.</span>crc32(flag) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0x5E5C4A02</span>
+</span></span></code></pre></div><p>Probably you saw those comments. Yes, we do have <code>SHA256</code> since it&rsquo;s already provided in challenge&rsquo;s binary, but we don&rsquo;t have <code>MD5</code> one. At this point we have to think of many options to crack this piece of code and get the flag.</p>
+<h2 id="obtaining-the-flag">Obtaining the flag</h2>
+<p>There&rsquo;s one small note on the code above is that the author did a small change in our <code>CHACHA</code> algorithm, which he modified the <code>counter</code> value in initial key state from <code>0</code> to <code>0x2a</code> (For more information about <code>CHACHA</code>, you can check this <a href="https://cr.yp.to/chacha/chacha-20080120.pdf">link</a>), that&rsquo;s the reason why I have to rewrite <code>CHACHA</code>&rsquo;s whole implementation again. But interestingly, this small change made me spent almost a day learning this algorithm carefully because I thought that this may results to some vulnerability and we could get the flag from this.</p>
+<p>I was wrong, but still worth a try.</p>
+<p>I also came up with some crazy ideas like converting <code>SHA256</code> to <code>MD5</code> without knowing the plaintext, or maybe there&rsquo;re some OTP problems&hellip;</p>
+<p>But everything leads to one thing: It&rsquo;s almost impossible to crack this code while the contest was still up.</p>
+<p>I really frustrated at that point, but small idea came up to my mind: Maybe the password is weak!?</p>
+<p>It&rsquo;s actually a legit way of attacking because everything related to crypto at that moment was impossible to solve or crack. So probably there would be an actual chance that the only way to solve this problem was hoping the password is acutally weak.</p>
+<p>I downloaded <code>rockyou.txt</code> and started bruteforcing with this script:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>password <span style="color:#f92672">=</span> list(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;CORnwallis&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> hashlib
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">encrypt</span>(password):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(password)):
+</span></span><span style="display:flex;"><span>        v19 <span style="color:#f92672">=</span> (i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">%</span> len(password)
+</span></span><span style="display:flex;"><span>        password[i] <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>        password[i] <span style="color:#f92672">=</span> (<span style="color:#f92672">~</span>((password[v19] <span style="color:#f92672">^</span> password[i]) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x62</span>)) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&#39;</span><span style="color:#f92672">.</span>join(bytes([i]) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> password)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>leak <span style="color:#f92672">=</span> open(<span style="color:#e6db74">&#34;rockyou.txt&#34;</span>, <span style="color:#e6db74">&#34;rb&#34;</span>)<span style="color:#f92672">.</span>readlines()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> leak:
+</span></span><span style="display:flex;"><span>    password <span style="color:#f92672">=</span> i<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    print(password)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    sha256 <span style="color:#f92672">=</span> hashlib<span style="color:#f92672">.</span>sha256()
+</span></span><span style="display:flex;"><span>    password <span style="color:#f92672">=</span> encrypt(list(password))
+</span></span><span style="display:flex;"><span>    sha256<span style="color:#f92672">.</span>update(password)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> sha256<span style="color:#f92672">.</span>digest() <span style="color:#f92672">==</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#39;9c00f1ac636216e2342f64ae3b82e3c02749a69c35df8c03554d55c101869d47&#39;</span>):
+</span></span><span style="display:flex;"><span>        print(<span style="color:#e6db74">&#39;Found&#39;</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">break</span>
+</span></span></code></pre></div><p>And there is actually a result!! The password is <code>canthackmehackers</code>.</p>
+<p>After getting the password, I reran the program with a debugger and checked the memory region that contains the flag after it decrypted:</p>
+<p><img src="https://i.imgur.com/7gTW3Uw.png" alt=""></p>
+<p><code>corctf{d1d_y0u_h4ck_m3_h4ck3rm4n?}</code></p>
+<hr>
+<h1 id="bogus-6-solves">Bogus (6 solves)</h1>
+<p><code>It's taking so long...</code></p>
+<p>A simple flag checker challenge, but like the description said, the algorithm that checks the flag may take a while to finish, so probably the best thing to do at first is to understand the binary itself.</p>
+<p>Although many instructions have been documented, I&rsquo;ll try to explain some of it as simple as possible so we can visualize the flow of the algorithm easier.</p>
+<p>And to make the explaination clearer, I&rsquo;ll assume that all <code>ymm</code> register is an array with size of 8 bytes.</p>
+<h2 id="vpermd">VPERMD</h2>
+<p><code>vpermd  ymm0, ymm1, ymm2</code></p>
+<p>It&rsquo;ll swap <code>ymm2</code> values base on <code>ymm1</code> and put the result into <code>ymm0</code>:</p>
+<p><img src="https://i.imgur.com/OH2W1At.png" alt=""></p>
+<p>And here&rsquo;s the python implementation:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">swappos</span>(source, pos):
+</span></span><span style="display:flex;"><span>    li <span style="color:#f92672">=</span> list(source)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(pos)):
+</span></span><span style="display:flex;"><span>        li[i] <span style="color:#f92672">=</span> source[pos[i]]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> li
+</span></span></code></pre></div><h2 id="vpunpckldq">VPUNPCKLDQ</h2>
+<p><code>vpunpckldq ymm2, ymm1, ymm0</code></p>
+<p>It&rsquo;ll take values in some specific positions from <code>ymm0</code>, <code>ymm1</code>, merge them and put the result in <code>ymm2</code></p>
+<p><img src="https://i.imgur.com/JEyeHlx.png" alt=""></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">mergelow</span>(source0, source1):
+</span></span><span style="display:flex;"><span>    li <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">2</span>):
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source1[i])
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source0[i])
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">4</span>, <span style="color:#ae81ff">6</span>):
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source1[i])
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source0[i])
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> li
+</span></span></code></pre></div><h2 id="vpunpckhdq">VPUNPCKHDQ</h2>
+<p><code>vpunpckhdq ymm2, ymm1, ymm0</code></p>
+<p>Similar to <code>vpunpckldq</code>, but it&rsquo;ll take the other positions to merge.</p>
+<p><img src="https://i.imgur.com/fm7Oeu8.png" alt=""></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">mergehigh</span>(source0, source1):
+</span></span><span style="display:flex;"><span>    li <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">4</span>):
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source1[i])
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source0[i])
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">6</span>, <span style="color:#ae81ff">8</span>):
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source1[i])
+</span></span><span style="display:flex;"><span>        li<span style="color:#f92672">.</span>append(source0[i])
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> li
+</span></span></code></pre></div><h2 id="vpcmpgtd">VPCMPGTD</h2>
+<p><code>vpcmpgtd ymm0, ymm1, ymm2</code></p>
+<p>It&rsquo;ll compare <code>ymm1</code> with <code>ymm2</code> at each positions. If <code>ymm1[i] &gt; ymm2[i]</code> then <code>ymm0[i] = 0xf</code>, otherwise <code>ymm0[i] = 0</code></p>
+<p><img src="https://i.imgur.com/3A5DjC7.png" alt=""></p>
+<p>The implementation in python is a little bit different. Instead returning an array <code>ymm0</code>, I try to display the result as an int for further purposes.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">compare_greater</span>(source0, source1):
+</span></span><span style="display:flex;"><span>    res <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(source0)):
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> source0[i] <span style="color:#f92672">&gt;</span> source1[i]:
+</span></span><span style="display:flex;"><span>            res <span style="color:#f92672">+=</span> (<span style="color:#ae81ff">0xf</span> <span style="color:#f92672">&lt;&lt;</span> (<span style="color:#ae81ff">4</span> <span style="color:#f92672">*</span> i))
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> res
+</span></span></code></pre></div><h2 id="putting-it-all-together">Putting it all together</h2>
+<p>Let&rsquo;s look at the challenge binary in IDA:</p>
+<p><img src="https://i.imgur.com/8Zcm1t2.png" alt=""></p>
+<p>First it&rsquo;ll store an array of hardcoded values from <code>.rodata</code> to the stack. Then it&rsquo;ll read our input, a small note is that our input is 16 bytes long.</p>
+<p><img src="https://i.imgur.com/579Z6C4.png" alt=""></p>
+<p>After that it&rsquo;ll check if our input is in range from A to P. If fail, it&rsquo;ll jump to an infinite loop and we can&rsquo;t escape from it. Else it will continue the validating process.</p>
+<p><img src="https://i.imgur.com/L7HrtGS.png" alt=""></p>
+<p>Next it&rsquo;ll load our input into register <code>ymm0</code> and <code>ymm1</code>, each register holds 8 bytes of our input. It&rsquo;ll also load some constants <code>shift</code>, <code>shift2</code>, <code>msk</code> to registers.</p>
+<p><img src="https://i.imgur.com/ZjxprxE.png" alt=""></p>
+<p><img src="https://i.imgur.com/ee2rkbN.png" alt=""></p>
+<p>This is the main logic of the entire binary. These codes is similar to this python script:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">...</span>
+</span></span><span style="display:flex;"><span>r8 <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>r11 <span style="color:#f92672">=</span> old_r11
+</span></span><span style="display:flex;"><span>r11 <span style="color:#f92672">=</span> (r11 <span style="color:#f92672">*</span> some_const <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffffffffffff</span>
+</span></span><span style="display:flex;"><span>old_r11 <span style="color:#f92672">=</span> r11
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>id <span style="color:#f92672">=</span> (((r11 <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffff</span>) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">//</span> <span style="color:#ae81ff">4</span>)
+</span></span><span style="display:flex;"><span>ymm6 <span style="color:#f92672">=</span> li[id:id<span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>]
+</span></span><span style="display:flex;"><span>r11 <span style="color:#f92672">&gt;&gt;=</span> <span style="color:#ae81ff">0x16</span>
+</span></span><span style="display:flex;"><span>id <span style="color:#f92672">=</span> (((r11 <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffff</span>) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">//</span> <span style="color:#ae81ff">4</span>)
+</span></span><span style="display:flex;"><span>ymm7 <span style="color:#f92672">=</span> li[id:id <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>]
+</span></span><span style="display:flex;"><span>r11 <span style="color:#f92672">&gt;&gt;=</span> <span style="color:#ae81ff">0x16</span>
+</span></span><span style="display:flex;"><span>id <span style="color:#f92672">=</span> (((r11 <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffff</span>) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">//</span> <span style="color:#ae81ff">4</span>)
+</span></span><span style="display:flex;"><span>ymm10 <span style="color:#f92672">=</span> li[id:id <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>]
+</span></span><span style="display:flex;"><span>r11 <span style="color:#f92672">&gt;&gt;=</span> <span style="color:#ae81ff">0x16</span>
+</span></span><span style="display:flex;"><span>id <span style="color:#f92672">=</span> (((r11 <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffff</span>) <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">//</span> <span style="color:#ae81ff">4</span>)
+</span></span><span style="display:flex;"><span>ymm11 <span style="color:#f92672">=</span> li[id:id <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ymm0 <span style="color:#f92672">=</span> swappos(ymm0, ymm6)
+</span></span><span style="display:flex;"><span>ymm1 <span style="color:#f92672">=</span> swappos(ymm1, ymm7)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ymm2 <span style="color:#f92672">=</span> mergelow(ymm0, ymm1)
+</span></span><span style="display:flex;"><span>ymm3 <span style="color:#f92672">=</span> mergehigh(ymm0, ymm1)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ymm4 <span style="color:#f92672">=</span> swappos(ymm2, ymm10)
+</span></span><span style="display:flex;"><span>ymm5 <span style="color:#f92672">=</span> swappos(ymm3, ymm11)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ymm0 <span style="color:#f92672">=</span> mergelow(ymm4, ymm5)
+</span></span><span style="display:flex;"><span>ymm1 <span style="color:#f92672">=</span> mergehigh(ymm4, ymm5)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ymm6 <span style="color:#f92672">=</span> swappos(ymm0, ymm12)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>res <span style="color:#f92672">=</span> compare_greater(ymm0, ymm6)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> res <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0xfffffff0</span>:
+</span></span><span style="display:flex;"><span>    ymm6 <span style="color:#f92672">=</span> swappos(ymm1, ymm12)
+</span></span><span style="display:flex;"><span>    ymm3 <span style="color:#f92672">=</span> swappos(ymm0, ymm14)
+</span></span><span style="display:flex;"><span>    ymm6[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">=</span> ymm3[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>    res <span style="color:#f92672">=</span> compare_greater(ymm1, ymm6)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> res <span style="color:#f92672">==</span> <span style="color:#ae81ff">0xffffffff</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> r8 <span style="color:#f92672">==</span> <span style="color:#ae81ff">0x3B9ACA00</span>:
+</span></span><span style="display:flex;"><span>            print(<span style="color:#e6db74">&#39;Found&#39;</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">else</span>:
+</span></span><span style="display:flex;"><span>            print(<span style="color:#e6db74">&#39;No&#39;</span>)
+</span></span><span style="display:flex;"><span>        exit(<span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span><span style="color:#f92672">...</span>
+</span></span></code></pre></div><p>Basically it will loop a couple of times with counter <code>r8d</code> and swap our input&rsquo;s positions.</p>
+<p>Finally it&rsquo;ll check <code>ymm0</code> and <code>ymm1</code> through some conditions. If it&rsquo;s true, it&rsquo;ll check if <code>r8d == 0x3B9ACA00</code>, if yes then our input is the flag.</p>
+<p>After carefully analyzing the conditions, I know that <code>ymm0</code> and <code>ymm1</code> have to be <code>[0, 1, 2, 3, 4, 5, 6, 7]</code> and <code>[8, 9, 10, 11, 12, 13, 14, 15]</code> respectively to pass that check. At this point we can sum up the algorithm: We&rsquo;ll input a 16-bytes string, the binary will swap our input in a loop and at <code>0x3B9ACA00</code>th loop, our input has to be <code>ABCDEFGHIJKLMNOP</code>.</p>
+<p>For more context, this algorithm is actually <a href="https://www.geeksforgeeks.org/bogosort-permutation-sort/">bogosort</a></p>
+<h2 id="solution">Solution</h2>
+<p>To solve this problem, I&rsquo;ll input string <code>ABCDEFGHIJKLMNOP</code> and see what&rsquo;s the state of <code>ymm0</code> and <code>ymm1</code> in <code>0x3B9ACA00</code>th loop, extract that state and rearrange the input to suit the condition. One of the way I do to obtain that final state is to patch the binary like this:</p>
+<p>Before:</p>
+<p><img src="https://i.imgur.com/j1CX92U.png" alt=""></p>
+<p>After:</p>
+<p><img src="https://i.imgur.com/Hn6hvPw.png" alt=""></p>
+<p>We will attach a debugger to it, put breakpoint at <code>0x12ca</code> and run the binary. We&rsquo;ll obtain the final state in a short time.</p>
+<p>Then all we have to do is just rearrange our input so that it fits the condition:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>li <span style="color:#f92672">=</span> [int(i) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> <span style="color:#e6db74">&#39;0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15&#39;</span><span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39; &#39;</span>)]
+</span></span><span style="display:flex;"><span>print(li)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>final_state <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#39;02 00 00 00 0D 00 00 00 06 00 00 00 08 00 00 00 05 00 00 00 04 00 00 00 0C 00 00 00 0B 00 00 00 09 00 00 00 0E 00 00 00 01 00 00 00 00 00 00 00 07 00 00 00 0A 00 00 00 0F 00 00 00 03 00 00 00&#39;</span>)
+</span></span><span style="display:flex;"><span>order <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(final_state) <span style="color:#f92672">//</span> <span style="color:#ae81ff">4</span>):
+</span></span><span style="display:flex;"><span>    order<span style="color:#f92672">.</span>append(u32(final_state[i<span style="color:#f92672">*</span><span style="color:#ae81ff">4</span>:(i<span style="color:#f92672">+</span><span style="color:#ae81ff">1</span>)<span style="color:#f92672">*</span><span style="color:#ae81ff">4</span>]))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>print(order)
+</span></span><span style="display:flex;"><span>new_li <span style="color:#f92672">=</span> [<span style="color:#ae81ff">0</span>] <span style="color:#f92672">*</span> <span style="color:#ae81ff">16</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(len(order)):
+</span></span><span style="display:flex;"><span>    new_li[order[i]] <span style="color:#f92672">=</span> li[i]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> new_li:
+</span></span><span style="display:flex;"><span>    print(chr(i <span style="color:#f92672">+</span> ord(<span style="color:#e6db74">&#39;A&#39;</span>)), end <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>)
+</span></span></code></pre></div><p><code>corctf{LKAPFECMDINHGBJO}</code></p>
+
+		</section>
+
+		<div class="post-tags">
+			
+			
+			
+		</div>
+	</article>
+</main>
+<footer>
+  <div style="display:flex"><a class="soc" href="https://github.com/mochinishimiya" title="GitHub"><i data-feather="github"></i></a>
+    <a class="border"></a><a class="soc" href="https://twitter.com/MochiNishimiya" title="Twitter"><i data-feather="twitter"></i></a>
+    <a class="border"></a></div>
+  <div class="footer-info">
+    2022  <a
+      href="https://github.com/athul/archie">Archie Theme</a> | Built with <a href="https://gohugo.io">Hugo</a>
+  </div>
+</footer>
+
+
+<script>
+  feather.replace()
+</script></div>
+    </body>
+</html>
