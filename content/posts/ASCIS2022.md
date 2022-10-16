@@ -114,7 +114,7 @@ Khúc cuối chương trình có đoạn so sánh kết quả:
 
 ![](https://i.imgur.com/4eoH1TI.png)
 
-Tới đây ta quá rõ đây là một hệ phương trình ba ẩn. Tới đây mình chỉ việc lấy các hằng số ra và nhờ Crypto bên mình giải hệ phương trình giúp. Và kết quả là `FAKU{N3V3R_9onn4_91v3_yOU_uP!}`.
+Tới đây mình khá chắc đây là một hệ phương trình ba ẩn, nên mình sẽ lấy các hằng số ra và nhờ Crypto bên mình giải hệ phương trình giúp. Và kết quả là `FAKU{N3V3R_9onn4_91v3_yOU_uP!}`.
 
 Nhưng khi mình thử chạy chương trình lúc debug và nhập flag này vào, kết quả trả về là `[-] Correct!`, và khi mình chạy chương trình không dùng debugger thì kết quả trả về là `[!] Wrong!`.
 
