@@ -6,7 +6,16 @@
     <description>Recent content in Posts on Mochi</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Fri, 05 Aug 2022 01:11:28 +0700</lastBuildDate><atom:link href="https://mochinishimiya.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 16 Oct 2022 01:11:28 +0700</lastBuildDate><atom:link href="https://mochinishimiya.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>ASCIS 2022 - Faku</title>
+      <link>https://mochinishimiya.github.io/posts/ascis2022/</link>
+      <pubDate>Sun, 16 Oct 2022 01:11:28 +0700</pubDate>
+      
+      <guid>https://mochinishimiya.github.io/posts/ascis2022/</guid>
+      <description>Table of Contents Một vài lời nói đầu Khởi đầu Phân tích Anti Debugger Một vài lời nói đầu Sinh viên an toàn thông tin năm nay mình thi cùng với team UIT.pawf3ct, và bài blog này sẽ nói về cách làm của mình cho bài Reverse tên Faku. Trong lúc thi mình đã đầu tư cả 5-6 tiếng vào bài này chỉ vì một lỗi sai vô cùng ngớ ngẩn, tuy vậy mình vẫn cảm thấy khá vui và vô cùng giải tỏa tinh thần khi tìm ra được flag bài này.</description>
+    </item>
+    
     <item>
       <title>CorCTF 2022</title>
       <link>https://mochinishimiya.github.io/posts/corctf2022/</link>
