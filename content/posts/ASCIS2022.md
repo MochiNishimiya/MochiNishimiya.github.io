@@ -112,7 +112,7 @@ Tương tự với những 2 lần tiếp theo:
 
 Khúc cuối chương trình có đoạn so sánh kết quả:
 
-![](https://i.imgur.com/SfHhz1f.png)
+![](https://i.imgur.com/4eoH1TI.png)
 
 Tới đây ta quá rõ đây là một hệ phương trình ba ẩn. Tới đây mình chỉ việc lấy các hằng số ra và nhờ Crypto bên mình giải hệ phương trình giúp. Và kết quả là `FAKU{N3V3R_9onn4_91v3_yOU_uP!}`.
 
@@ -122,7 +122,7 @@ Nhưng khi mình thử chạy chương trình lúc debug và nhập flag này v�
 
 Đây là một dấu hiệu rất rõ ràng chương trình có anti debugger. Nhưng làm sao để biết được đoạn code nào có kỹ thuật anti debugger? Nếu như hiểu đủ rõ chương trình này, chúng ta có thể để ý hầu như không thấy sự xuất hiện nào của kỹ thuật anti debugger trong chương trình chính. Tới đây mình đoán chắc có thể những hàm đó nằm trong hàm init.  
 
-![](https://i.imgur.com/HFDvjiE.png)
+![](https://i.imgur.com/SfHhz1f.png)
 
 Cụ thể các hàm init nằm ở địa chỉ `0x407190`
 

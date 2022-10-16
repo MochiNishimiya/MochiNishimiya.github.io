@@ -122,12 +122,12 @@ Bingo! Vậy đây là một phép nhân số lớn. Mình đã làm tương t�
 <code>input0 * const3 + input1 * const4 + input2 * const5</code><br>
 <code>input0 * const6 - input1 * const7 - input2 * const8</code></p>
 <p>Khúc cuối chương trình có đoạn so sánh kết quả:</p>
-<p><img src="https://i.imgur.com/SfHhz1f.png" alt=""></p>
+<p><img src="https://i.imgur.com/4eoH1TI.png" alt=""></p>
 <p>Tới đây ta quá rõ đây là một hệ phương trình ba ẩn. Tới đây mình chỉ việc lấy các hằng số ra và nhờ Crypto bên mình giải hệ phương trình giúp. Và kết quả là <code>FAKU{N3V3R_9onn4_91v3_yOU_uP!}</code>.</p>
 <p>Nhưng khi mình thử chạy chương trình lúc debug và nhập flag này vào, kết quả trả về là <code>[-] Correct!</code>, và khi mình chạy chương trình không dùng debugger thì kết quả trả về là <code>[!] Wrong!</code>.</p>
 <h1 id="anti-debugger">Anti Debugger</h1>
 <p>Đây là một dấu hiệu rất rõ ràng chương trình có anti debugger. Nhưng làm sao để biết được đoạn code nào có kỹ thuật anti debugger? Nếu như hiểu đủ rõ chương trình này, chúng ta có thể để ý hầu như không thấy sự xuất hiện nào của kỹ thuật anti debugger trong chương trình chính. Tới đây mình đoán chắc có thể những hàm đó nằm trong hàm init.</p>
-<p><img src="https://i.imgur.com/HFDvjiE.png" alt=""></p>
+<p><img src="https://i.imgur.com/SfHhz1f.png" alt=""></p>
 <p>Cụ thể các hàm init nằm ở địa chỉ <code>0x407190</code></p>
 <p><img src="https://i.imgur.com/AUvogBI.png" alt=""></p>
 <p>Khi mình kiểm tra các hàm, mình phát hiện tận 3 kỹ thuật anti debugger: <code>NtQueryInformationProcess</code>, <code>GetThreadContext</code> và <code>PEB</code> (Mình sẽ không giải thích các kĩ thuật anti debugger trên, các bạn đọc có thể tham khảo <a href="https://www.apriorit.com/dev-blog/367-anti-reverse-engineering-protection-techniques-to-use-before-releasing-software">tại đây</a>)</p>
