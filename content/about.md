@@ -6,6 +6,6 @@ aliases = ["about-us","about-hugo","contact"]
 author = "Hugo Authors"
 +++
 
-A noob no one asked for, and still learning everyday. Main goal is to have fun in life (indeed, rev and pwn is really fun!).
+A noob no one asked for, and still learning everyday. Main goal is to have fun in life (indeed, binaries are fun!).
 
-Member of team idek, and captain of team purf3ct.
+Member of team r3kapig, and captain of team purf3ct.

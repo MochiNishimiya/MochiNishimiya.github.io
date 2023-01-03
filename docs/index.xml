@@ -6,7 +6,17 @@
     <description>Recent content on Mochi</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 16 Oct 2022 01:11:28 +0700</lastBuildDate><atom:link href="https://mochinishimiya.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 03 Jan 2023 01:11:28 +0700</lastBuildDate><atom:link href="https://mochinishimiya.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>TetCTF 2023 - Game</title>
+      <link>https://mochinishimiya.github.io/posts/tetctf2023/</link>
+      <pubDate>Tue, 03 Jan 2023 01:11:28 +0700</pubDate>
+      
+      <guid>https://mochinishimiya.github.io/posts/tetctf2023/</guid>
+      <description>Table of Contents Overview Description First Tackles Environment Setup Exploiting Overview This week I played TetCTF with team The South Gang (purf3ct x blackpinkEx) and we manage to get second place overall. Although there&amp;rsquo;s no Reverse Engineer category (which I mainly do), me and my friends encounter a really interesting pwn challenge which is really nice and also really fun to solve, and here&amp;rsquo;s my writeup about it.
+Description I wrote a Metamod plugin to retrieve the classname of any entities on a running Sven Co-Op game server.</description>
+    </item>
+    
     <item>
       <title>ASCIS 2022 - Faku</title>
       <link>https://mochinishimiya.github.io/posts/ascis2022/</link>
@@ -22,8 +32,8 @@
       <pubDate>Fri, 05 Aug 2022 01:25:02 +0700</pubDate>
       
       <guid>https://mochinishimiya.github.io/about/</guid>
-      <description>A noob no one asked for, and still learning everyday. Main goal is to have fun in life (indeed, rev and pwn is really fun!).
-Member of team idek, and captain of team purf3ct.</description>
+      <description>A noob no one asked for, and still learning everyday. Main goal is to have fun in life (indeed, binaries are fun!).
+Member of team r3kapig, and captain of team purf3ct.</description>
     </item>
     
     <item>
