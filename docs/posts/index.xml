@@ -6,14 +6,15 @@
     <description>Recent content in Posts on Mochi</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sun, 26 Feb 2023 01:11:28 +0700</lastBuildDate><atom:link href="https://mochinishimiya.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 01 Mar 2023 01:11:28 +0700</lastBuildDate><atom:link href="https://mochinishimiya.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>ACSC 2023</title>
       <link>https://mochinishimiya.github.io/posts/acsc2023/</link>
-      <pubDate>Sun, 26 Feb 2023 01:11:28 +0700</pubDate>
+      <pubDate>Wed, 01 Mar 2023 01:11:28 +0700</pubDate>
       
       <guid>https://mochinishimiya.github.io/posts/acsc2023/</guid>
-      <description>Table of Contents pyso Reversing Obtaining the flag Bogus VPERMD VPUNPCKLDQ VPUNPCKHDQ VPCMPGTD Putting it all together Solution Overview This week I played TetCTF with team The South Gang (purf3ct x blackpinkEx) and we manage to get second place overall. Although there&amp;rsquo;s no Reverse Engineer category (which I mainly do), me and my friends encounter a really interesting pwn challenge which is really nice and also really fun to solve, and here&amp;rsquo;s my writeup about it.</description>
+      <description>Table of Contents Preface pyso First look Analyzing encryption routine Recreate program&amp;rsquo;s flow in Python Decrypt and get flag snake Initial analysis LD_PRELOAD trick and further analysis Analyzing packet&amp;rsquo;s components Create a valid packet Preface Last week I participated in Asian Cyber Security Challenge (ACSC), I managed to get 12th place overall and 1st place in my country as an eligible participant for ICC.
+In all Reverse challenges I solved, pyso and snake are the most interested among them and I think it would be nice to share what I&amp;rsquo;ve done through this writeup.</description>
     </item>
     
     <item>
