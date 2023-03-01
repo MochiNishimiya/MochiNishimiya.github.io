@@ -80,7 +80,7 @@
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-fallback" data-lang="fallback"><span style="display:flex;"><span>Typical crackme challenge in a CTF. But written in py so it should be harder, right?
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>Time to download pyinstaller extractor again.
-</span></span></code></pre></div><p>Given file: <a href="../../challenges/ACSC_2023/pyso.tar.gz">pyso.tar.gz</a> // Todo: Add real links</p>
+</span></span></code></pre></div><p>Given file: <a href="https://github.com/MochiNishimiya/mochinishimiya.github.io/raw/main/challenges/ACSC_2023/pyso.tar.gz">pyso.tar.gz</a></p>
 <h2 id="first-look">First look</h2>
 <p>We&rsquo;re being given <code>main.py</code> and <code>libvalidator</code>. Here&rsquo;s the source code of <code>main.py</code>:</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-py" data-lang="py"><span style="display:flex;"><span><span style="color:#f92672">import</span> libvalidator
@@ -284,15 +284,15 @@
 </span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0LL</span>;
 </span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>Again, this function only swaps values in <code>table</code>, so we just need to extract those 2 values and apply them to our <code>input</code>. But somehow my brain suddenly shut down at that time and I decided to implement the whole table swapping function&hellip;</p>
-<p>Anyways, I finished my script on time, and it worked flawlessly. Here&rsquo;s my <a href="hehe">encryption script</a> that I reimplemented in python.</p>
+<p>Anyways, I finished my script on time, and it worked flawlessly. Here&rsquo;s my <a href="https://raw.githubusercontent.com/MochiNishimiya/mochinishimiya.github.io/main/challenges/ACSC_2023/encrypting.py">encryption script</a> that I reimplemented in python.</p>
 <h2 id="decrypting-and-getting-flag">Decrypting and getting flag</h2>
 <p>Decrypting the flag is relatively easy, as we just need to run everything backward and it should yields the flag. There&rsquo;s a note is that in this equation:</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>inp[i] <span style="color:#f92672">=</span> (<span style="color:#ae81ff">5889</span> <span style="color:#f92672">*</span> (((inp[i] <span style="color:#f92672">^</span> v19) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span> <span style="color:#f92672">*</span> ((v19 <span style="color:#f92672">&amp;</span> inp[i]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>)) <span style="color:#f92672">+</span> <span style="color:#ae81ff">3584</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>
-</span></span></code></pre></div><p>We can&rsquo;t simply reverse all operations to find old <code>inp[i]</code>, but we can bruteforce all printable characters, apply to the above equation and see if the result is equal to encrypted buffer. This way we can recover original <code>inp[i]</code>. Here&rsquo;s my <a href="hihi">decrypting script</a>.</p>
+</span></span></code></pre></div><p>We can&rsquo;t simply reverse all operations to find old <code>inp[i]</code>, but we can bruteforce all printable characters, apply to the above equation and see if the result is equal to encrypted buffer. This way we can recover original <code>inp[i]</code>. Here&rsquo;s my <a href="https://github.com/MochiNishimiya/mochinishimiya.github.io/raw/main/challenges/ACSC_2023/decrypting.py">decrypting script</a>.</p>
 <p><code>ACSC{pyth0n_numb4_0n3___s0_m4ny_functi0ns_s0_l1ttl3_us3ful_c0d3}</code></p>
 <h1 id="snake-5-solves">snake (5 solves)</h1>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-fallback" data-lang="fallback"><span style="display:flex;"><span>Classic snake game. Score more than 31337 points and you will get the flag.
-</span></span></code></pre></div><p>Given file: <a href="../../challenges/ACSC_2023/snake.tar.gz">snake.tar.gz</a> // Todo: Add real links</p>
+</span></span></code></pre></div><p>Given file: <a href="https://github.com/MochiNishimiya/mochinishimiya.github.io/raw/main/challenges/ACSC_2023/snake.tar.gz">snake.tar.gz</a></p>
 <h2 id="initial-analysis">Initial analysis</h2>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">int</span> a1, <span style="color:#66d9ef">char</span> <span style="color:#f92672">**</span>a2, <span style="color:#66d9ef">char</span> <span style="color:#f92672">**</span>a3)
 </span></span><span style="display:flex;"><span>{
