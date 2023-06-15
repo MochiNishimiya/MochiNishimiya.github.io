@@ -115,7 +115,7 @@ In general, `.eh_frame` will describe how we can find other stack frames in stac
 
 # thiefcat (3 solves)
 
-Although hiding codes in `.eh_frame` is a really old techniques (the video was recorded in 2011), it still creates certain difficulties as there're no specific tools to analyze this type of bytecode and I personally didn't know about this technique until I encountered this challenge.
+Although hiding codes in `.eh_frame` is a really old technique (the video was recorded in 2011), it still creates certain difficulties as there're no specific tools to analyze this type of bytecode and I personally didn't know about this technique until I encountered this challenge.
 
 ## Description
 
