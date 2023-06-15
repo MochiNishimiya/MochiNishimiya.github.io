@@ -69,7 +69,7 @@ The potential problematic code is in `function_C`, but this time the handling fu
 
 ![](https://hackmd.io/_uploads/rkCnUb_vn.png)
 
-The way it works is that when an error is occur in `function_C`, first it will walk through all the previous stack frame in order to find the one that has a handler that accept to handle our current error. If we can't find any stack frame that can do so, the program will be terminated, otherwise we'll start from the current stack frame and walk through again, but this time it will cleanup memories in these stack frames until it encounters the one that accept handling our error. This process is called stack unwinding.
+The way it works is that when an error is occur in `function_C`, first it will walk through all of the previous stack frames in order to find the one that has a handler that accept handling our current error. If we can't find any stack frame that can do so, the program will be terminated, otherwise we'll start from the current stack frame and walk through all over again, but this time it will cleanup memories in these stack frames until it encounters the one that accept handling our error. This process is called stack unwinding.
 
 The interesting part is that most of the time, C++ uses DWARF bytecode to implement stack unwinding process, and this bytecode is stored `.eh_frame` section. You can use `readelf` command to see the content of this section:
 
