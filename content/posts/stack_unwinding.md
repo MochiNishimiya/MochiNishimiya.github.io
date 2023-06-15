@@ -38,7 +38,7 @@ void function_A(int a, int b) {
 }
 ```
 
-You can see that the line `int c = a / b;` may cause problem because `b` can be zero. The idea of those 3 keywords is that if there's an error happens in the `try` block, we can `throw` it and the `catch` block will handle the error for you. So if `b` is zero, `thow 404;` will be executed and the program will print `Error!!!` in the `catch` block. Let's move on to a little bit more complicated example:
+You can see that the line `int c = a / b;` may cause problem because `b` can be zero. The idea behind these 3 keywords is that if there's an error happens in the `try` block, we can `throw` it and the `catch` block will handle the error for you. So if `b` is zero, `thow 404;` will be executed and the program will print `Error!!!` in the `catch` block. Let's move on to a little bit more complicated example:
 
 ```C
 void function_C(int a, int b) {
