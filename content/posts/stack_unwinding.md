@@ -71,7 +71,7 @@ This time the potential problematic code is in `function_C`, but this time the h
 
 The way it works is that when an error is occur in `function_C`, first it will walk through all the previous stack frame in order to find the one that has a handler that accept to handle our current error. If we can't find any stack frame that can do so, the program will be terminated, otherwise we'll start from the current stack frame and walk through again, but this time it will cleanup memories in these stack frames until it encounters the one that accept handling our error. This process is called stack unwinding.
 
-The interesting part is that most of the time, C++ uses DWARF bytecode to implement stack unwinding process, and this bytecode is stored `.eh_frame` section. You can use `readelf` command to see the content of the instructions:
+The interesting part is that most of the time, C++ uses DWARF bytecode to implement stack unwinding process, and this bytecode is stored `.eh_frame` section. You can use `readelf` command to see the content of this section:
 
 ```sh
 nguyenguyen753@nguyenguyen753:~/Desktop$ readelf --debug-dump=frames a.out 
@@ -129,7 +129,7 @@ Given files: [thiefcat](https://github.com/MochiNishimiya/mochinishimiya.github.
 
 ## Get DWARF bytecode
 
-The binary is really simple: `theifcat.py` acts as a server, `thiefcat` will connect to it, after that `flag.txt` (you have to create a new file) will be deleted and a random byte array will be printed by `thiefcat.py`. At this point I knew it was just a simple encryption challenge where we have to decrypt the encrypted flag to get it, but if you look at `thiefcat` closely, the code contains nothing related to any kind of encryption. Then one of my teammate find out about code is being hidden in `.eh_frame`:
+The binary is really simple: `theifcat.py` acts as a server, `thiefcat` will connect to it, after that `flag.txt` (you have to create a new file) will be deleted and a random byte array will be printed by `thiefcat.py`. At this point I knew it was just a simple challenge where we have to decrypt the encrypted flag to get the final flag, but if you look at `thiefcat` closely, the code contains nothing related to any kind of encryption. Then one of my teammate find out about code is being hidden in `.eh_frame`:
 
 ![](https://hackmd.io/_uploads/Sy7g7D_wh.png)
 
@@ -164,7 +164,7 @@ After reading and learning about DWARF bytecode, I knew what I had to do next: O
 ...
 ```
 
-Unfortunately, there isn't any reference to DWARF bytecode on the internet, but luckily the [source code](https://codebrowser.dev/llvm/libunwind/src/DwarfInstructions.hpp.html) is clear enough to understand the functionality of each instructions. The bytecode from `readelf` isn't readable enough for me to reverse so I write a small script to print bytecode in nicer format:
+Unfortunately, there isn't any reference to DWARF bytecode on the internet, but luckily the [source code](https://codebrowser.dev/llvm/libunwind/src/DwarfInstructions.hpp.html) is clear enough to understand the functionality of each instructions. And the bytecode from `readelf` isn't readable enough for me to reverse so I write a small script to print bytecode in nicer format:
 
 ```py
 all = open('log.txt', 'r').read().split('\n')
@@ -317,7 +317,7 @@ The basic implementation behind this code is that it'll set values for two regis
 ```
 
 There're some small details worth noticing while reversing this code:
-  - `r12` acts as pc in the VM, as you can see almost every func will end with `r12 = (r12 + 1)` with some exceptions that it will set `r12` to a specific value, which indicates it's a jump or a call instruction.
+  - `r12` acts as pc in the VM, as you can see almost every `ins_block` will end with `r12 = (r12 + 1)` with some exceptions that it will set `r12` to a specific value, which indicates it's a jump or a call instruction.
   - The VM implemented its own stack frame, which will store return address and arguments that's being passed to a function. 
 
 Static analyzing is not enough cause we have to observe how memories being modified to have a better understanding of the algorithm, at the same time debug it would be too hard since we have to dig down into libraries that implement this type of bytecode, which is really time consuming. There's an easy approach which I used while doing this is to put breakpoint at 2 places: `0x159D` and `0x19F8`. Putting breakpoint at `0x159D` to observe memories before executing the VM and at `0x19F8` to observe the result after executing a block of instructions.
