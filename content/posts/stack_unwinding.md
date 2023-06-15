@@ -19,7 +19,7 @@ Two weeks ago, I played justCTF with r3kapig and we managed to get the first pla
 
 # Stack Unwinding
 
-Most of the time when a program encounters an unexpected behaviour (for example division by zero), it will be terminated. Exception handle was introduced to help programmers handling these behaviours by themselve and still preserve the original code flow.
+Most of the time when a program encounters an unexpected behaviour (for example division by zero), it will be terminated. Exception handling was introduced to help programmers handling these behaviours by themselve and still preserve the original code flow.
 
 In C++, they introduced keywords like `try`, `throw`, `catch` to handle exceptions. Let's look at the following code:
 

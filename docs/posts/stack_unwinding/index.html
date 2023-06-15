@@ -68,7 +68,7 @@
 <h1 id="intro">Intro</h1>
 <p>Two weeks ago, I played justCTF with r3kapig and we managed to get the first place. There&rsquo;s one reversing challenge that&rsquo;s really unique as it abuses the internal exception handling process to create an exotic VM. This blog is solely my brief note about how stack unwinding works in the exception handling procedure and a short writeup for that challenge.</p>
 <h1 id="stack-unwinding">Stack Unwinding</h1>
-<p>Most of the time when a program encounters an unexpected behaviour (for example division by zero), it will be terminated. Exception handle was introduced to help programmers handling these behaviours by themselve and still preserve the original code flow.</p>
+<p>Most of the time when a program encounters an unexpected behaviour (for example division by zero), it will be terminated. Exception handling was introduced to help programmers handling these behaviours by themselve and still preserve the original code flow.</p>
 <p>In C++, they introduced keywords like <code>try</code>, <code>throw</code>, <code>catch</code> to handle exceptions. Let&rsquo;s look at the following code:</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-C" data-lang="C"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">function_A</span>(<span style="color:#66d9ef">int</span> a, <span style="color:#66d9ef">int</span> b) {
 </span></span><span style="display:flex;"><span>    try {
