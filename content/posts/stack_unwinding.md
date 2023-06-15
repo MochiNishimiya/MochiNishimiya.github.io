@@ -71,7 +71,7 @@ The potential problematic code is in `function_C`, but this time the handling fu
 
 The way it works is that when an error is occur in `function_C`, first it will walk through all of the previous stack frames in order to find the one that has a handler that accept handling our current error. If we can't find any stack frame that can do so, the program will be terminated, otherwise we'll start from the current stack frame and walk through all over again, but this time it will cleanup memories in these stack frames until it encounters the one that accept handling our error. This process is called stack unwinding.
 
-The interesting part is that most of the time, C++ uses DWARF bytecode to implement stack unwinding process, and this bytecode is stored `.eh_frame` section. You can use `readelf` command to see the content of this section:
+The interesting part is that most of the time, C++ uses DWARF bytecode to implement stack unwinding process, and this bytecode is stored in `.eh_frame` section. You can use `readelf` command to see the content of this section:
 
 ```sh
 nguyenguyen753@nguyenguyen753:~/Desktop$ readelf --debug-dump=frames a.out 
@@ -133,7 +133,7 @@ The binary is really simple: `theifcat.py` acts as a server, `thiefcat` will con
 
 ![](https://hackmd.io/_uploads/Sy7g7D_wh.png)
 
-After reading and learning about DWARF bytecode, I knew what I had to do next: Obtaining the real logic. Again, I used `readelf` to extract the code:
+After reading and learning about DWARF bytecode, I knew that I would need to extract the real flow in `.eh_frame`. Again, I used `readelf` to review all the code:
 
 ```sh
 ...
@@ -164,7 +164,7 @@ After reading and learning about DWARF bytecode, I knew what I had to do next: O
 ...
 ```
 
-Unfortunately, there isn't any reference to DWARF bytecode on the internet, but luckily the [source code](https://codebrowser.dev/llvm/libunwind/src/DwarfInstructions.hpp.html) is clear enough to understand the functionality of each instructions. And the bytecode from `readelf` isn't readable enough for me to reverse so I write a small script to print bytecode in nicer format:
+Unfortunately, there isn't any reference to DWARF bytecode on the internet, but luckily the [source code](https://codebrowser.dev/llvm/libunwind/src/DwarfInstructions.hpp.html) is clear enough to understand functionality of each instructions. And the bytecode from `readelf` isn't readable enough for me to reverse so I write a small script to print bytecode in nicer format:
 
 ```py
 all = open('log.txt', 'r').read().split('\n')
@@ -304,7 +304,7 @@ r12 = (r12 + 1)
 
 ## Reversing
 
-The basic implementation behind this code is that it'll set values for two registers `rbx` and `rsp` in each exception handling process, and the `catch` block will set memory at `rbp` to `rbx` by following code:
+The basic implementation behind this code is that it'll set values for two registers `rbx` and `rsp` in each exception handling process, and the `catch` block will set memory at `rbp` to `rbx`:
 
 ```sh
 .text:00000000000019F8 ;   catch(std::exception) // owned by 17B5
@@ -320,7 +320,7 @@ There're some small details worth noticing while reversing this code:
   - `r12` acts as pc in the VM, as you can see almost every `ins_block` will end with `r12 = (r12 + 1)` with some exceptions that it will set `r12` to a specific value, which indicates it's a jump or a call instruction.
   - The VM implemented its own stack frame, which will store return address and arguments that's being passed to a function. 
 
-Static analyzing is not enough cause we have to observe how memories being modified to have a better understanding of the algorithm, at the same time debug it would be too hard since we have to dig down into libraries that implement this type of bytecode, which is really time consuming. There's an easy approach which I used while doing this is to put breakpoint at 2 places: `0x159D` and `0x19F8`. Putting breakpoint at `0x159D` to observe memories before executing the VM and at `0x19F8` to observe the result after executing a block of instructions.
+Static analyzing is not enough cause we have to observe how memories being modified to have a better understanding of the algorithm, at the same time debugging it would be too hard since we have to dig down into libraries that implement this type of bytecode, which is really time consuming. There's an easy approach which I used while doing this is to put breakpoint at 2 places: `0x159D` and `0x19F8`. Putting breakpoint at `0x159D` to observe memories before executing the VM and at `0x19F8` to observe the result after executing a block of instructions.
 
 The flow should look like this:
   - `ins_block_0` to `ins_block_2f`: it'll try to find address of `open`, `exit` and `unlink` functions in `libc.so.6`.
