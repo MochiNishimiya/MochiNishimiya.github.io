@@ -65,7 +65,7 @@ int main() {
 }
 ```
 
-This time the potential problematic code is in `function_C`, but this time the handling function is in `main()`. This is what it looks like in lower level:
+The potential problematic code is in `function_C`, but this time the handling function is in `main()`. This is what it looks like in lower level:
 
 ![](https://hackmd.io/_uploads/rkCnUb_vn.png)
 
