@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html><head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge"><title>Stack unwinding and the story of a thief - Mochi</title><link rel="icon" type="image/png" href=https://github.com/MochiNishimiya/mochinishimiya.github.io/blob/main/favicon.ico?raw&#61;true /><meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="Some notes about stack unwinding and a short writeup for thiefcat" />
+	<meta property="og:image" content=""/>
+	<meta property="og:title" content="Stack unwinding and the story of a thief" />
+<meta property="og:description" content="Some notes about stack unwinding and a short writeup for thiefcat" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://mochinishimiya.github.io/posts/stack_unwinding/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-06-09T01:11:28+07:00" />
+<meta property="article:modified_time" content="2023-06-09T01:11:28+07:00" />
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Stack unwinding and the story of a thief"/>
+<meta name="twitter:description" content="Some notes about stack unwinding and a short writeup for thiefcat"/>
+<script src="https://mochinishimiya.github.io/js/feather.min.js"></script>
+	
+	
+        <link href="https://mochinishimiya.github.io/css/fonts.7fa06c2792c8589768ffcdaf014e4bfc7f2ccbfba059f8e87131158970c23ed3.css" rel="stylesheet">
+	
+
+	
+	<link rel="stylesheet" type="text/css" media="screen" href="https://mochinishimiya.github.io/css/main.8689881321c3544631bd4e2e14a6acb182a98927569954a5af156c2833fba623.css" />
+		<link id="darkModeStyle" rel="stylesheet" type="text/css" href="https://mochinishimiya.github.io/css/dark.4bf332c39a21927ebdde34f90f86b9db9b3cf33d14549a5c1b70f6e492b97030.css"   />
+	
+	
+	
+</head>
+<body>
+        <div class="content"><header>
+	<div class="main">
+		<a href="https://mochinishimiya.github.io/">Mochi</a>
+	</div>
+	<nav>
+		
+		<a href="/">Home</a>
+		
+		<a href="/posts">All posts</a>
+		
+		<a href="/about">About</a>
+		
+		
+	</nav>
+</header>
+
+<main>
+	<article>
+		<div class="title">
+			<h1 class="title">Stack unwinding and the story of a thief</h1>
+			<div class="meta">Posted on Jun 9, 2023</div>
+		</div>
+		
+
+		<section class="body">
+			<h1 id="table-of-contents">Table of Contents</h1>
+<ol>
+<li><a href="#intro">Intro</a></li>
+<li><a href="#stack-unwinding">Stack Unwinding</a></li>
+<li><a href="#thiefcat-3-solves">thiefcat</a>
+<ol>
+<li><a href="#description">Description</a></li>
+<li><a href="#get-dwarf-bytecode">Get DWARF bytecode</a></li>
+<li><a href="#reversing">Reversing</a></li>
+</ol>
+</li>
+<li><a href="#references">References</a></li>
+</ol>
+<h1 id="intro">Intro</h1>
+<p>Two weeks ago, I played justCTF with r3kapig and we managed to get the first place. There&rsquo;s one reversing challenge that&rsquo;s really unique as it abuses the internal exception handling process to create an exotic VM. This blog is solely my brief note about how stack unwinding works in the exception handling procedure and a short writeup for that challenge.</p>
+<h1 id="stack-unwinding">Stack Unwinding</h1>
+<p>Most of the time when a program encounters an unexpected behaviour (for example division by zero), it will be terminated. Exception handle was introduced to help programmers handle these behaviour by themselve and still preserve the original flow of the code.</p>
+<p>In C++, they introduced keywords like <code>try</code>, <code>throw</code>, <code>catch</code> to handle exceptions. Let&rsquo;s look at the following code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-C" data-lang="C"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">function_A</span>(<span style="color:#66d9ef">int</span> a, <span style="color:#66d9ef">int</span> b) {
+</span></span><span style="display:flex;"><span>    try {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (b <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) 
+</span></span><span style="display:flex;"><span>            throw <span style="color:#ae81ff">404</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> c <span style="color:#f92672">=</span> a <span style="color:#f92672">/</span> b;
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Success!!!&#34;</span>);
+</span></span><span style="display:flex;"><span>    } <span style="color:#a6e22e">catch</span>(...) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Error!!!&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Finish executing!!!&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>You can see that the line <code>int c = a / b;</code> may cause problem because <code>b</code> can be zero. The idea of those 3 keywords is that if there&rsquo;s an error happens in the <code>try</code> block, we can <code>throw</code> it and the <code>catch</code> block will handle the error for you. So if <code>b</code> is zero, <code>thow 404;</code> will be executed and the program will print <code>Error!!!</code> in the <code>catch</code> block. Let&rsquo;s move on to a little bit more complicated example:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-C" data-lang="C"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">function_C</span>(<span style="color:#66d9ef">int</span> a, <span style="color:#66d9ef">int</span> b) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (b <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) 
+</span></span><span style="display:flex;"><span>        throw <span style="color:#ae81ff">404</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> c <span style="color:#f92672">=</span> a <span style="color:#f92672">/</span> b;
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Success!!!&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">function_B</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">function_C</span>(<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">function_A</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">function_B</span>();
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
+</span></span><span style="display:flex;"><span>    try {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">function_A</span>();
+</span></span><span style="display:flex;"><span>    } <span style="color:#a6e22e">catch</span>(...) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Error!!!&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>This time the potential problematic code is in <code>function_C</code>, but this time the handling function is in <code>main()</code>. This is what it looks like in lower level:</p>
+<p><img src="https://hackmd.io/_uploads/rkCnUb_vn.png" alt=""></p>
+<p>The way it works is that when an error is occur in <code>function_C</code>, first it will walk through all the previous stack frame in order to find the one that has a handler that accept to handle our current error. If we can&rsquo;t find any stack frame that can do so, the program will be terminated, otherwise we&rsquo;ll start from the current stack frame and walk through again, but this time it will cleanup memories in these stack frames until it counters the one that accept handling our error. This process is called stack unwinding.</p>
+<p>The interesting part is that most of the time, C++ uses DWARF bytecode to implement stack unwinding process, and this bytecode is stored <code>.eh_frame</code> section. You can use <code>readelf</code> command to see the content of the instructions:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>nguyenguyen753@nguyenguyen753:~/Desktop$ readelf --debug-dump<span style="color:#f92672">=</span>frames a.out 
+</span></span><span style="display:flex;"><span>Contents of the .eh_frame section:
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">00000000</span> <span style="color:#ae81ff">0000000000000014</span> <span style="color:#ae81ff">00000000</span> CIE
+</span></span><span style="display:flex;"><span>  Version:               <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>  Augmentation:          <span style="color:#e6db74">&#34;zR&#34;</span>
+</span></span><span style="display:flex;"><span>  Code alignment factor: <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>  Data alignment factor: -8
+</span></span><span style="display:flex;"><span>  Return address column: <span style="color:#ae81ff">16</span>
+</span></span><span style="display:flex;"><span>  Augmentation data:     1b
+</span></span><span style="display:flex;"><span>  DW_CFA_def_cfa: r7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span> ofs <span style="color:#ae81ff">8</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_offset: r16 <span style="color:#f92672">(</span>rip<span style="color:#f92672">)</span> at cfa-8
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">00000018</span> <span style="color:#ae81ff">0000000000000014</span> 0000001c FDE cie<span style="color:#f92672">=</span><span style="color:#ae81ff">00000000</span> pc<span style="color:#f92672">=</span>0000000000001100..0000000000001126
+</span></span><span style="display:flex;"><span>  DW_CFA_advance_loc: <span style="color:#ae81ff">4</span> to <span style="color:#ae81ff">0000000000001104</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_undefined: r16 <span style="color:#f92672">(</span>rip<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">00000030</span> <span style="color:#ae81ff">0000000000000024</span> <span style="color:#ae81ff">00000034</span> FDE cie<span style="color:#f92672">=</span><span style="color:#ae81ff">00000000</span> pc<span style="color:#f92672">=</span>0000000000001020..0000000000001090
+</span></span><span style="display:flex;"><span>  DW_CFA_def_cfa_offset: <span style="color:#ae81ff">16</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_advance_loc: <span style="color:#ae81ff">6</span> to <span style="color:#ae81ff">0000000000001026</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_def_cfa_offset: <span style="color:#ae81ff">24</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_advance_loc: <span style="color:#ae81ff">10</span> to <span style="color:#ae81ff">0000000000001030</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_def_cfa_expression <span style="color:#f92672">(</span>DW_OP_breg7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span>: 8; DW_OP_breg16 <span style="color:#f92672">(</span>rip<span style="color:#f92672">)</span>: 0; DW_OP_lit15; DW_OP_and; DW_OP_lit10; DW_OP_ge; DW_OP_lit3; DW_OP_shl; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><p>In general, <code>.eh_frame</code> will describe how we can find other stack frames in stack unwinding process. Another interesting thing about DWARF VM is that it is a stack-based VM, turing-complete and can access memories, registers in the program. With this in mind, back in the day people came up with an idea to write malicious codes in DWARF bytecode, hide it in <code>.eh_frame</code> to avoid being detected. You can look at <a href="https://www.youtube.com/watch?v=nLH7ytOTYto">this video</a> to understand more about how they hide malicous code in DWARF format.</p>
+<h1 id="thiefcat-3-solves">thiefcat (3 solves)</h1>
+<p>Although hiding codes in <code>.eh_frame</code> is a really old techniques (the video was recorded in 2011), it still creates certain difficulties as there&rsquo;re no specific tools to analyze this type of bytecode and I personally didn&rsquo;t know about this technique until I encountered this challenge.</p>
+<h2 id="description">Description</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-fallback" data-lang="fallback"><span style="display:flex;"><span>My friend told me they made a terminal based game, but using some issue with stock netcat as an excuse they sent me this netcat-like binary telling me to use it instead! I didn&#39;t get the source code, but I took a quick look at it using a well-known state-of-the-art reverse engineering tool and it seemed perfectly safe to run. However, it stole the flag for this task from me! Can you get it back?
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>I recorded the network traffic and reconstructed a simple server in Python from it. The program was confirmed to run in a ubuntu:20.04 container, but it should run on almost any Linux distro out there.
+</span></span></code></pre></div><p>Given files: <a href="https://github.com/MochiNishimiya/mochinishimiya.github.io/raw/main/challenges/jctf_2023/thiefcat">thiefcat</a>, <a href="https://github.com/MochiNishimiya/mochinishimiya.github.io/raw/main/challenges/jctf_2023/thiefcat.py">thiefcat.py</a></p>
+<h2 id="get-dwarf-bytecode">Get DWARF bytecode</h2>
+<p>The binary is really simple: <code>theifcat.py</code> acts as a server, <code>thiefcat</code> will connect to it, after that <code>flag.txt</code> (you have to create a new file) will be deleted and a random byte array will be printed by <code>thiefcat.py</code>. At this point I knew it was just a simple encryption challenge where we have to decrypt the encrypted flag to get it, but if you look at <code>thiefcat</code> closely, the code contains nothing related to any kind of encryption. Then one of my teammate find out about code is being hidden in <code>.eh_frame</code>:</p>
+<p><img src="https://hackmd.io/_uploads/Sy7g7D_wh.png" alt=""></p>
+<p>After reading and learning about DWARF bytecode, I knew what I had to do next: Obtaining the real logic. Again, I used <code>readelf</code> to extract the code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">00000178</span> <span style="color:#ae81ff">0000000000000030</span> 0000008c FDE cie<span style="color:#f92672">=</span>000000f0 pc<span style="color:#f92672">=</span>0000000000001a11..0000000000001a12
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span>; DW_OP_lit8; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r16 <span style="color:#f92672">(</span>rip<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg0 <span style="color:#f92672">(</span>rax<span style="color:#f92672">)</span>; DW_OP_const2u: 6144; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r6 <span style="color:#f92672">(</span>rbp<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span>; DW_OP_lit16; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r3 <span style="color:#f92672">(</span>rbx<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg0 <span style="color:#f92672">(</span>rax<span style="color:#f92672">)</span>; DW_OP_const2u: 5447; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r12 <span style="color:#f92672">(</span>r12<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg12 <span style="color:#f92672">(</span>r12<span style="color:#f92672">)</span>; DW_OP_lit1; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>000001ac <span style="color:#ae81ff">0000000000000034</span> 000000c0 FDE cie<span style="color:#f92672">=</span>000000f0 pc<span style="color:#f92672">=</span>0000000000001a12..0000000000001a13
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span>; DW_OP_lit8; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r16 <span style="color:#f92672">(</span>rip<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg0 <span style="color:#f92672">(</span>rax<span style="color:#f92672">)</span>; DW_OP_const2u: 6144; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r6 <span style="color:#f92672">(</span>rbp<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span>; DW_OP_const1u: 136; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r3 <span style="color:#f92672">(</span>rbx<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span>; DW_OP_const1u: 32; DW_OP_plus; DW_OP_lit28; DW_OP_plus; DW_OP_deref<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r12 <span style="color:#f92672">(</span>r12<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg12 <span style="color:#f92672">(</span>r12<span style="color:#f92672">)</span>; DW_OP_lit1; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>000001e4 <span style="color:#ae81ff">0000000000000034</span> 000000f8 FDE cie<span style="color:#f92672">=</span>000000f0 pc<span style="color:#f92672">=</span>0000000000001a13..0000000000001a14
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg7 <span style="color:#f92672">(</span>rsp<span style="color:#f92672">)</span>; DW_OP_lit8; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r16 <span style="color:#f92672">(</span>rip<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg0 <span style="color:#f92672">(</span>rax<span style="color:#f92672">)</span>; DW_OP_const2u: 6144; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r6 <span style="color:#f92672">(</span>rbp<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg0 <span style="color:#f92672">(</span>rax<span style="color:#f92672">)</span>; DW_OP_const2u: 32824; DW_OP_plus; DW_OP_lit0; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r3 <span style="color:#f92672">(</span>rbx<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg0 <span style="color:#f92672">(</span>rax<span style="color:#f92672">)</span>; DW_OP_const2u: 5533; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_val_expression: r12 <span style="color:#f92672">(</span>r12<span style="color:#f92672">)</span> <span style="color:#f92672">(</span>DW_OP_reg12 <span style="color:#f92672">(</span>r12<span style="color:#f92672">)</span>; DW_OP_lit1; DW_OP_plus<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>  DW_CFA_nop
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><p>Unfortunately, there isn&rsquo;t any reference to DWARF bytecode on the internet, but luckily the <a href="https://codebrowser.dev/llvm/libunwind/src/DwarfInstructions.hpp.html">source code</a> is clear enough to understand the functionality of each instructions. The bytecode from <code>readelf</code> isn&rsquo;t readable enough for me to reverse so I write a small script to print bytecode in nicer format:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-py" data-lang="py"><span style="display:flex;"><span>all <span style="color:#f92672">=</span> open(<span style="color:#e6db74">&#39;log.txt&#39;</span>, <span style="color:#e6db74">&#39;r&#39;</span>)<span style="color:#f92672">.</span>read()<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>)
+</span></span><span style="display:flex;"><span>cou <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">ins_decode</span>(x):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>        stack <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> ins <span style="color:#f92672">in</span> x:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#39;DW_OP_reg&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> ins<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;(&#39;</span>)[<span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;)&#39;</span>)[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#39;rax&#39;</span> <span style="color:#f92672">in</span> x:
+</span></span><span style="display:flex;"><span>                    x <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;BASE_ADDR&#39;</span>
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>append(x)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_const&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>append(ins<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;: &#39;</span>)[<span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>strip())
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_plus&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> + </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_mul&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> * </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_minus&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> - </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_mod&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> % </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_shl&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> &lt;&lt; </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_shr&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> &gt;&gt; </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_lt&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> &lt; </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_ge&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> &gt;= </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_xor&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> ^ </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_or&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> | </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_and&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> &amp; </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_not&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(~</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_neg&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(-</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_ne&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> != </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_eq&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                x <span style="color:#f92672">=</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>pop()
+</span></span><span style="display:flex;"><span>                stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;(</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> == </span><span style="color:#e6db74">{</span>x<span style="color:#e6db74">}</span><span style="color:#e6db74">)&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_deref&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#39;DW_OP_deref_size&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                    size <span style="color:#f92672">=</span> ins<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;: &#39;</span>)[<span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">if</span> size <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;1&#39;</span>:
+</span></span><span style="display:flex;"><span>                        stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;[</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74">].byte_size&#39;</span>
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">elif</span> size <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;2&#39;</span>:
+</span></span><span style="display:flex;"><span>                        stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;[</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74">].word_size&#39;</span>
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">elif</span> size <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;4&#39;</span>:
+</span></span><span style="display:flex;"><span>                        stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;[</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74">].dword_size&#39;</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">else</span>:
+</span></span><span style="display:flex;"><span>                    stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;[</span><span style="color:#e6db74">{</span>stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74">].qword_size&#39;</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_OP_lit&#39;</span> <span style="color:#f92672">in</span> ins:
+</span></span><span style="display:flex;"><span>                val <span style="color:#f92672">=</span> ins<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;DW_OP_lit&#39;</span>)[<span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>                stack<span style="color:#f92672">.</span>append(val)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">else</span>:
+</span></span><span style="display:flex;"><span>                print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;unknown: </span><span style="color:#e6db74">{</span>ins<span style="color:#e6db74">}</span><span style="color:#e6db74">&#39;</span>)
+</span></span><span style="display:flex;"><span>                exit(<span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> stack[len(stack) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">except</span>:
+</span></span><span style="display:flex;"><span>        print(stack)
+</span></span><span style="display:flex;"><span>        exit(<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> x <span style="color:#f92672">in</span> all:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#39;FDE&#39;</span> <span style="color:#f92672">in</span> x:
+</span></span><span style="display:flex;"><span>        print()
+</span></span><span style="display:flex;"><span>        print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;ins_block_</span><span style="color:#e6db74">{</span>hex(cou)[<span style="color:#ae81ff">2</span>:]<span style="color:#e6db74">}</span><span style="color:#e6db74">&#39;</span>)
+</span></span><span style="display:flex;"><span>        cou <span style="color:#f92672">+=</span> <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_CFA_val_expression&#39;</span> <span style="color:#f92672">not</span> <span style="color:#f92672">in</span> x<span style="color:#f92672">.</span>strip():
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">continue</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;rip&#39;</span> <span style="color:#f92672">in</span> x:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">continue</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">elif</span> <span style="color:#e6db74">&#39;DW_CFA_nop&#39;</span> <span style="color:#f92672">in</span> x:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">continue</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>:
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">=</span> x<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;DW_CFA_val_expression: &#39;</span>)[<span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">=</span> x[x<span style="color:#f92672">.</span>find(<span style="color:#e6db74">&#39; &#39;</span>):]<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>        val <span style="color:#f92672">=</span> x[:x<span style="color:#f92672">.</span>find(<span style="color:#e6db74">&#39; &#39;</span>)]
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">=</span> x[x<span style="color:#f92672">.</span>find(<span style="color:#e6db74">&#39; &#39;</span>):]<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">=</span> x[<span style="color:#ae81ff">1</span>:<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>split(<span style="color:#e6db74">&#39;; &#39;</span>)
+</span></span><span style="display:flex;"><span>        print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">{</span>val[<span style="color:#ae81ff">1</span>:<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]<span style="color:#e6db74">}</span><span style="color:#e6db74"> = </span><span style="color:#e6db74">{</span>ins_decode(x)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#39;</span>)
+</span></span></code></pre></div><p>The code after formatting looks readable enough to analyze:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-fallback" data-lang="fallback"><span style="display:flex;"><span>ins_block_0
+</span></span><span style="display:flex;"><span>rsp = (rsp + 8)
+</span></span><span style="display:flex;"><span>rbp = (rsp + 16)
+</span></span><span style="display:flex;"><span>rbx = (BASE_ADDR + 5447)
+</span></span><span style="display:flex;"><span>r12 = (r12 + 1)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ins_block_1
+</span></span><span style="display:flex;"><span>rsp = (rsp + 8)
+</span></span><span style="display:flex;"><span>rbp = (rsp + 136)
+</span></span><span style="display:flex;"><span>rbx = [((rsp + 32) + 28)].qword_size
+</span></span><span style="display:flex;"><span>r12 = (r12 + 1)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ins_block_2
+</span></span><span style="display:flex;"><span>rsp = (rsp + 8)
+</span></span><span style="display:flex;"><span>rbp = ((BASE_ADDR + 32824) + 0)
+</span></span><span style="display:flex;"><span>rbx = (BASE_ADDR + 5533)
+</span></span><span style="display:flex;"><span>r12 = (r12 + 1)
+</span></span><span style="display:flex;"><span>...
+</span></span></code></pre></div><h2 id="reversing">Reversing</h2>
+<p>The basic implementation behind this code is that it&rsquo;ll set values for two registers <code>rbx</code> and <code>rsp</code> in each exception handling process, and the <code>catch</code> block will set memory at <code>rbp</code> to <code>rbx</code> by following code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-sh" data-lang="sh"><span style="display:flex;"><span>.text:00000000000019F8 ;   catch<span style="color:#f92672">(</span>std::exception<span style="color:#f92672">)</span> // owned by 17B5
+</span></span><span style="display:flex;"><span>.text:00000000000019F8                 mov     <span style="color:#f92672">[</span>rbp+var_s0<span style="color:#f92672">]</span>, rbx
+</span></span><span style="display:flex;"><span>.text:00000000000019FC                 mov     rax, <span style="color:#f92672">[</span>rsp+8<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>.text:0000000000001A01                 mov     <span style="color:#f92672">[</span>rsp+4470h+var_4470<span style="color:#f92672">]</span>, rax
+</span></span><span style="display:flex;"><span>.text:0000000000001A05                 mov     rbp, rsp
+</span></span><span style="display:flex;"><span>.text:0000000000001A08                 leave
+</span></span><span style="display:flex;"><span>.text:0000000000001A09                 retn
+</span></span></code></pre></div><p>There&rsquo;re some small details worth noticing while reversing this code:</p>
+<ul>
+<li><code>r12</code> acts as pc in the VM, as you can see almost every func will end with <code>r12 = (r12 + 1)</code> with some exceptions that it will set <code>r12</code> to a specific value, which indicates it&rsquo;s a jump or a call instruction.</li>
+<li>The VM implemented its own stack frame, which will store return address and arguments that&rsquo;s being passed to a function.</li>
+</ul>
+<p>Static analyzing is not enough cause we have to observe how memories being modified to have a better understanding of the algorithm, at the same time debug it would be too hard since we have to dig down into libraries that implement this type of bytecode, which is really time consuming. There&rsquo;s an easy approach which I used while doing this is to put breakpoint at 2 places: <code>0x159D</code> and <code>0x19F8</code>. Putting breakpoint at <code>0x159D</code> to observe memories before executing the VM and at <code>0x19F8</code> to observe the result after executing a block of instructions.</p>
+<p>The flow should look like this:</p>
+<ul>
+<li><code>ins_block_0</code> to <code>ins_block_2f</code>: it&rsquo;ll try to find address of <code>open</code>, <code>exit</code> and <code>unlink</code> functions in <code>libc.so.6</code>.</li>
+<li><code>ins_block_30</code> to <code>ins_block_36</code>: it&rsquo;ll look for <code>Session ID:</code> string in the received message from server. The program will exit if the string can&rsquo;t be found.</li>
+<li><code>ins_block_39</code> to <code>ins_block_50</code>: Open <code>flag.txt</code>, read and then unlink the file. You may notice that <code>read</code> function isn&rsquo;t being imported, it actually uses <code>read</code> from the binary itself since the binary has to use <code>read</code> to receive replied message over socket.</li>
+<li>And the rest is about encrypting the flag.</li>
+</ul>
+<p>All opeartions that encrypt the flag can be found at <code>ins_block_ad</code> and <code>ins_block_ae</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-fallback" data-lang="fallback"><span style="display:flex;"><span>ins_block_ad
+</span></span><span style="display:flex;"><span>rbp = ([(rsp + 128)].qword_size + 8)
+</span></span><span style="display:flex;"><span>rbx = (((([([(rsp + 128)].qword_size + 8)].qword_size &gt;&gt; 8) | ([([(rsp + 128)].qword_size + 8)].qword_size &lt;&lt; 56)) + [([(rsp + 128)].qword_size + 16)].qword_size) ^ [([([(rsp + 128)].qword_size + 24)].qword_size + ((4 ^ [([(rsp + 128)].qword_size + 0)].qword_size) &lt;&lt; 3))].qword_size)
+</span></span><span style="display:flex;"><span>r12 = (r12 + 1)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ins_block_ae
+</span></span><span style="display:flex;"><span>rbp = ([(rsp + 128)].qword_size + 16)
+</span></span><span style="display:flex;"><span>rbx = ((([([(rsp + 128)].qword_size + 16)].qword_size &lt;&lt; 3) | ([([(rsp + 128)].qword_size + 16)].qword_size &gt;&gt; 61)) ^ [([(rsp + 128)].qword_size + 8)].qword_size)
+</span></span><span style="display:flex;"><span>r12 = (r12 + 1)
+</span></span></code></pre></div><p>After understanding the algorithm, I implemented the encryption part in python:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-py" data-lang="py"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>key <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#39;3644607d4311ecda06c054893ea63302d51611e49ec895a2457b376e6f95e69c3ae13d773a755a62a36eab01cb4d0c6a17c63817f743e78a7119957f9cd6fbc01ca7f358862c4d89653a05792ca4b2514701ea5f8f5e5b5f28cfd1b375d9f437a029905d0fcc64f5fa0ad2ec6dee897d9c09426593ee2f971197554baa3bd45f76641a26ab3b1babf638442fcb2ba9ffb41742bb98c219be32c613a7f007933128f80ee4865acc45a6499cc7dc7af7d10e78668f6dc64c39253c2a60128e65b814b714df5ce1fbcfd544575608b2d7766011bcf7832a5d5f8e9ce104215faed1cf799664245fabd00fda69b4e9c1530f4564b4dd6fc443fac97c90ed4581dae548561344c74fc6e29e54a10c371ca0fc5134c77c214f8a334ba3d8f3dba03246329e2b5d6a079838027db3fb3e2f6164bb845dbaa4a908dbde6e29df50e6455c&#39;</span>)
+</span></span><span style="display:flex;"><span>li <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">0</span>, len(key), <span style="color:#ae81ff">8</span>):
+</span></span><span style="display:flex;"><span>    li<span style="color:#f92672">.</span>append(u64(key[i:i<span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>]))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>MOD64 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0xffffffffffffffff</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>inp <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;M&#39;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">32</span>
+</span></span><span style="display:flex;"><span>x <span style="color:#f92672">=</span> u64(inp[:<span style="color:#ae81ff">8</span>])
+</span></span><span style="display:flex;"><span>y <span style="color:#f92672">=</span> u64(inp[<span style="color:#ae81ff">8</span>:<span style="color:#ae81ff">16</span>])
+</span></span><span style="display:flex;"><span>u <span style="color:#f92672">=</span> u64(inp[<span style="color:#ae81ff">16</span>:<span style="color:#ae81ff">24</span>])
+</span></span><span style="display:flex;"><span>v <span style="color:#f92672">=</span> u64(inp[<span style="color:#ae81ff">24</span>:<span style="color:#ae81ff">32</span>])
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">40</span>):
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">=</span> ((x <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">8</span>) <span style="color:#f92672">+</span> (x <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">56</span>)) <span style="color:#f92672">+</span> y
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">^=</span> li[i <span style="color:#f92672">^</span> <span style="color:#ae81ff">4</span>]
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">&amp;=</span> MOD64
+</span></span><span style="display:flex;"><span>    y <span style="color:#f92672">=</span> (((y <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">61</span>) <span style="color:#f92672">+</span> (y <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">3</span>)) <span style="color:#f92672">^</span> x) <span style="color:#f92672">&amp;</span> MOD64
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>u <span style="color:#f92672">^=</span> x
+</span></span><span style="display:flex;"><span>v <span style="color:#f92672">^=</span> y
+</span></span><span style="display:flex;"><span>ans <span style="color:#f92672">=</span> p64(x) <span style="color:#f92672">+</span> p64(y)
+</span></span><span style="display:flex;"><span>x, y <span style="color:#f92672">=</span> u, v
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">40</span>):
+</span></span><span style="display:flex;"><span>    z <span style="color:#f92672">=</span> ((x <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">8</span>) <span style="color:#f92672">+</span> (x <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">56</span>)) <span style="color:#f92672">+</span> y
+</span></span><span style="display:flex;"><span>    z <span style="color:#f92672">^=</span> li[i <span style="color:#f92672">^</span> <span style="color:#ae81ff">4</span>]
+</span></span><span style="display:flex;"><span>    z <span style="color:#f92672">&amp;=</span> MOD64
+</span></span><span style="display:flex;"><span>    x <span style="color:#f92672">=</span> z
+</span></span><span style="display:flex;"><span>    y <span style="color:#f92672">=</span> (((y <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">61</span>) <span style="color:#f92672">+</span> (y <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">3</span>)) <span style="color:#f92672">^</span> x) <span style="color:#f92672">&amp;</span> MOD64
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ans <span style="color:#f92672">+=</span> p64(x) <span style="color:#f92672">+</span> p64(y)
+</span></span><span style="display:flex;"><span>print(ans)
+</span></span></code></pre></div><p>And create a solve script:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-py" data-lang="py"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>key <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#39;3644607d4311ecda06c054893ea63302d51611e49ec895a2457b376e6f95e69c3ae13d773a755a62a36eab01cb4d0c6a17c63817f743e78a7119957f9cd6fbc01ca7f358862c4d89653a05792ca4b2514701ea5f8f5e5b5f28cfd1b375d9f437a029905d0fcc64f5fa0ad2ec6dee897d9c09426593ee2f971197554baa3bd45f76641a26ab3b1babf638442fcb2ba9ffb41742bb98c219be32c613a7f007933128f80ee4865acc45a6499cc7dc7af7d10e78668f6dc64c39253c2a60128e65b814b714df5ce1fbcfd544575608b2d7766011bcf7832a5d5f8e9ce104215faed1cf799664245fabd00fda69b4e9c1530f4564b4dd6fc443fac97c90ed4581dae548561344c74fc6e29e54a10c371ca0fc5134c77c214f8a334ba3d8f3dba03246329e2b5d6a079838027db3fb3e2f6164bb845dbaa4a908dbde6e29df50e6455c&#39;</span>)
+</span></span><span style="display:flex;"><span>li <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">0</span>, len(key), <span style="color:#ae81ff">8</span>):
+</span></span><span style="display:flex;"><span>    li<span style="color:#f92672">.</span>append(u64(key[i:i<span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>]))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>MOD64 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0xffffffffffffffff</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>u <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>v <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">reverse</span>(x, y):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">39</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>):
+</span></span><span style="display:flex;"><span>        y <span style="color:#f92672">^=</span> x
+</span></span><span style="display:flex;"><span>        y <span style="color:#f92672">=</span> ((y <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">61</span>) <span style="color:#f92672">+</span> (y <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">3</span>)) <span style="color:#f92672">&amp;</span> MOD64
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">^=</span> li[i <span style="color:#f92672">^</span> <span style="color:#ae81ff">4</span>]
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">-=</span> y
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">&amp;=</span> MOD64
+</span></span><span style="display:flex;"><span>        x <span style="color:#f92672">=</span> ((x <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">8</span>) <span style="color:#f92672">+</span> (x <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">56</span>)) <span style="color:#f92672">&amp;</span> MOD64
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> x, y
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>k <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;K</span><span style="color:#ae81ff">\xb9\xa5\x19\x9b\x18</span><span style="color:#e6db74">y</span><span style="color:#ae81ff">\xdc\xad\xb0\x11</span><span style="color:#e6db74">2I</span><span style="color:#ae81ff">\x01\t</span><span style="color:#e6db74">J</span><span style="color:#ae81ff">\xed\xa7</span><span style="color:#e6db74">N</span><span style="color:#ae81ff">\x0c\x95</span><span style="color:#e6db74">{</span><span style="color:#ae81ff">\x0b</span><span style="color:#e6db74">$</span><span style="color:#ae81ff">\x97</span><span style="color:#e6db74">J</span><span style="color:#ae81ff">\xb0\\</span><span style="color:#e6db74">p</span><span style="color:#ae81ff">\n\xf5\xaf</span><span style="color:#e6db74">&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>x0 <span style="color:#f92672">=</span> u64(k[<span style="color:#ae81ff">0</span>:<span style="color:#ae81ff">8</span>])
+</span></span><span style="display:flex;"><span>y0 <span style="color:#f92672">=</span> u64(k[<span style="color:#ae81ff">8</span>:<span style="color:#ae81ff">16</span>])
+</span></span><span style="display:flex;"><span>x, y <span style="color:#f92672">=</span> reverse(x0, y0)
+</span></span><span style="display:flex;"><span>ans <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(hex(x)[<span style="color:#ae81ff">2</span>:])[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>] <span style="color:#f92672">+</span> bytes<span style="color:#f92672">.</span>fromhex(hex(y)[<span style="color:#ae81ff">2</span>:])[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>x <span style="color:#f92672">=</span> u64(k[<span style="color:#ae81ff">16</span>:<span style="color:#ae81ff">24</span>])
+</span></span><span style="display:flex;"><span>y <span style="color:#f92672">=</span> u64(k[<span style="color:#ae81ff">24</span>:<span style="color:#ae81ff">32</span>])
+</span></span><span style="display:flex;"><span>x, y <span style="color:#f92672">=</span> reverse(x, y)
+</span></span><span style="display:flex;"><span>ans <span style="color:#f92672">+=</span> bytes<span style="color:#f92672">.</span>fromhex(hex(x <span style="color:#f92672">^</span> x0)[<span style="color:#ae81ff">2</span>:])[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>] <span style="color:#f92672">+</span> bytes<span style="color:#f92672">.</span>fromhex(hex(y <span style="color:#f92672">^</span> y0)[<span style="color:#ae81ff">2</span>:])[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>print(ans)
+</span></span></code></pre></div><p><code>justCTF{iM_5c4r3d_oF_7hIs_c4T!}</code></p>
+<p>I learned so much about exception handling after this CTF and it also gives me a similar vibe from a google CTF challenge named <code>eldar</code> (which is also abusing internal linux code to create an exotic VM). Big thanks to <code>ptrtofuture#4398</code> for creating this challenge.</p>
+<h1 id="references">References:</h1>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=nLH7ytOTYto">https://www.youtube.com/watch?v=nLH7ytOTYto</a></li>
+<li><a href="https://refspecs.linuxfoundation.org/abi-eh-1.22.html">https://refspecs.linuxfoundation.org/abi-eh-1.22.html</a></li>
+<li><a href="https://codebrowser.dev/llvm/libunwind/src/DwarfInstructions.hpp.html">https://codebrowser.dev/llvm/libunwind/src/DwarfInstructions.hpp.html</a></li>
+</ul>
+
+		</section>
+
+		<div class="post-tags">
+			
+			
+			
+		</div>
+	</article>
+</main>
+<footer>
+  <div style="display:flex"><a class="soc" href="https://github.com/mochinishimiya" title="GitHub"><i data-feather="github"></i></a>
+    <a class="border"></a><a class="soc" href="https://twitter.com/MochiNishimiya" title="Twitter"><i data-feather="twitter"></i></a>
+    <a class="border"></a></div>
+  <div class="footer-info">
+    2023  <a
+      href="https://github.com/athul/archie">Archie Theme</a> | Built with <a href="https://gohugo.io">Hugo</a>
+  </div>
+</footer>
+
+
+<script>
+  feather.replace()
+</script></div>
+    </body>
+</html>
