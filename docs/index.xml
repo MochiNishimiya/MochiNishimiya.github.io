@@ -13,7 +13,7 @@
       <pubDate>Fri, 09 Jun 2023 01:11:28 +0700</pubDate>
       
       <guid>https://mochinishimiya.github.io/posts/stack_unwinding/</guid>
-      <description>Table of Contents Intro Stack Unwinding thiefcat Description Get DWARF bytecode Reversing References Intro Two weeks ago, I played justCTF with r3kapig and we managed to get the first place. There&amp;rsquo;s one reversing challenge that&amp;rsquo;s really unique as it abuses the internal exception handling process to create an exotic VM. This blog is solely my brief note about how stack unwinding works in the exception handling procedure and a short writeup for that challenge.</description>
+      <description>Table of Contents Intro Stack Unwinding thiefcat Description Get DWARF bytecode Reversing References Intro Two weeks ago, I played justCTF with r3kapig and we managed to get first place. There&amp;rsquo;s one reversing challenge that&amp;rsquo;s really unique as it abuses the internal exception handling process to create an exotic VM. This blog is solely my brief note about how stack unwinding works in the exception handling procedure and a short writeup for that challenge.</description>
     </item>
     
     <item>

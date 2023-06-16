@@ -15,7 +15,7 @@ description: "Some notes about stack unwinding and a short writeup for thiefcat"
 4. [References](#references)
 
 # Intro
-Two weeks ago, I played justCTF with r3kapig and we managed to get the first place. There's one reversing challenge that's really unique as it abuses the internal exception handling process to create an exotic VM. This blog is solely my brief note about how stack unwinding works in the exception handling procedure and a short writeup for that challenge.
+Two weeks ago, I played justCTF with r3kapig and we managed to get first place. There's one reversing challenge that's really unique as it abuses the internal exception handling process to create an exotic VM. This blog is solely my brief note about how stack unwinding works in the exception handling procedure and a short writeup for that challenge.
 
 # Stack Unwinding
 
